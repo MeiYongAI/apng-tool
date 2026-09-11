@@ -258,6 +258,98 @@
             display: none;
         }
 
+        /* 紧凑状态上传追加条（当已有帧时自适应收起，释放垂直视口高度） */
+        .upload-card.compact {
+            min-height: 42px !important;
+            padding: 8px 14px !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            border-style: dashed;
+            background: var(--card-sub-bg);
+            transition: all 0.2s ease;
+        }
+        .upload-card.compact .upload-main-text {
+            font-size: 13px !important;
+            font-weight: 500 !important;
+        }
+        .upload-card.compact .upload-hint {
+            display: none !important;
+        }
+        .upload-card.compact .upload-plus-icon {
+            display: inline-block !important;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .upload-plus-icon {
+            display: none;
+        }
+
+        /* 封面实时监看画框样式 */
+        .cover-live-preview-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .cover-live-preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .cover-live-preview-title {
+            color: var(--text-sub);
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .cover-preview-ratio-badge {
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 10px;
+            background: var(--card-sub-bg);
+            color: var(--text-sub);
+            border: 1px solid var(--border-color);
+            font-family: monospace;
+        }
+        .cover-preview-stage {
+            width: 100%;
+            height: 120px;
+            background-color: var(--card-sub-bg);
+            background-image: 
+                linear-gradient(45deg, rgba(128, 128, 128, 0.08) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(128, 128, 128, 0.08) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.08) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.08) 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+        }
+        .cover-preview-canvas {
+            display: block;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+            max-width: 96%;
+            max-height: 94%;
+            transition: all 0.2s ease;
+        }
+        .cover-preview-canvas.fill-stage {
+            max-width: 100%;
+            max-height: 100%;
+            width: 100%;
+            height: 100%;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
         /* 纯色选择器样式 */
         .color-selector-panel {
             display: none;
@@ -466,6 +558,11 @@
             display: flex;
             align-items: center;
             gap: 6px;
+            flex-wrap: wrap;
+        }
+        .batch-inputs .btn-icon, .batch-toolbar > .btn-icon {
+            padding: 4px 8px;
+            font-size: 11.5px;
         }
 
         /* 全局配置控制 */
@@ -1348,10 +1445,13 @@
                     </div>
 
                     <!-- 实时所见即所得封面监看画框 -->
-                    <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                        <span style="color: var(--text-sub); font-size: 11px;">最终封面合成实时预览：</span>
-                        <div style="width: 100%; height: 120px; background: #000; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
-                            <canvas id="canvas-cover-live-preview" style="max-width: 100%; max-height: 100%; object-fit: contain;"></canvas>
+                    <div class="cover-live-preview-box">
+                        <div class="cover-live-preview-header">
+                            <span class="cover-live-preview-title">最终封面合成实时预览：</span>
+                            <span id="cover-preview-ratio-badge" class="cover-preview-ratio-badge">自适应</span>
+                        </div>
+                        <div id="cover-preview-stage" class="cover-preview-stage">
+                            <canvas id="canvas-cover-live-preview" class="cover-preview-canvas"></canvas>
                         </div>
                     </div>
                 </div>
@@ -1366,7 +1466,8 @@
 
                 <!-- 隐藏项目上传拖拽区（支持图片、动图、视频） -->
                 <div class="upload-card" id="drop-hidden" style="min-height: 120px; padding: 16px;">
-                    <div style="font-size: 15px; font-weight: 600;">点击或拖拽添加隐藏图片 / 动图 / 视频</div>
+                    <span class="upload-plus-icon">+</span>
+                    <div id="upload-hidden-title" class="upload-main-text" style="font-size: 15px; font-weight: 600;">点击或拖拽添加隐藏图片 / 动图 / 视频</div>
                     <div class="upload-hint">选择视频文件后将自动呼出可视化区间裁剪器（支持原帧率与任意自定义帧率）</div>
                     <input type="file" id="input-hidden" multiple accept="image/*,video/*" />
                 </div>
@@ -2472,7 +2573,7 @@
         }
 
         /**
-         * 刷新封面实时监看画框（所见即所得展示当前配置）。
+         * 刷新封面实时监看画框（所见即所得展示当前配置并消除比例挤压与黑边）。
          *
          * @returns {void}
          * @see Callers:
@@ -2481,25 +2582,61 @@
          *  - `setupCoverImageUpload`
          *  - `setupCoverEffectsControls`
          *  - `renderHiddenFrameList`
+         *  - `setupResolutionControls`
          */
         function updateCoverLivePreview() {
             const previewCanvas = document.getElementById("canvas-cover-live-preview");
+            const badge = document.getElementById("cover-preview-ratio-badge");
             if (!previewCanvas) return;
 
-            let prevW = 320;
-            let prevH = 180;
+            // 获取当前所选输出模式或帧的目标长宽比
+            let targetW = 320;
+            let targetH = 180;
+            let ratioLabel = "16:9 标清";
 
-            if (currentCoverMode === 'image' && coverImageState.img) {
-                prevW = coverImageState.width || 320;
-                prevH = coverImageState.height || 180;
-            } else if (currentCoverMode === 'frame' && hiddenFrames.length > 0) {
-                const f = hiddenFrames[currentCoverFrameIndex] || hiddenFrames[0];
-                if (f) {
-                    prevW = f.width;
-                    prevH = f.height;
+            if (hiddenFrames.length > 0) {
+                if (currentResPreset === 'native') {
+                    targetW = hiddenFrames[0].width;
+                    targetH = hiddenFrames[0].height;
+                    ratioLabel = `原图 ${targetW} × ${targetH}`;
+                } else if (currentResPreset === 'preset_1080p') {
+                    targetW = 1920; targetH = 1080; ratioLabel = "1080P";
+                } else if (currentResPreset === 'preset_720p') {
+                    targetW = 1280; targetH = 720; ratioLabel = "720P";
+                } else if (currentResPreset === 'preset_480p') {
+                    targetW = 854; targetH = 480; ratioLabel = "480P";
+                } else if (currentResPreset === 'preset_360p') {
+                    targetW = 640; targetH = 360; ratioLabel = "360P";
+                } else if (currentResPreset === 'custom') {
+                    targetW = Math.max(16, parseInt(document.getElementById("input-custom-width")?.value, 10) || hiddenFrames[0].width);
+                    targetH = Math.max(16, parseInt(document.getElementById("input-custom-height")?.value, 10) || hiddenFrames[0].height);
+                    ratioLabel = `自定义 ${targetW} × ${targetH}`;
                 }
+            } else if (currentCoverMode === 'image' && coverImageState.img) {
+                targetW = coverImageState.width || 320;
+                targetH = coverImageState.height || 180;
+                ratioLabel = `图片 ${targetW} × ${targetH}`;
             }
-            renderCoverToCanvas(previewCanvas, prevW, prevH, 'cover-fit');
+
+            if (badge) {
+                badge.textContent = ratioLabel;
+            }
+
+            // 纯色封面且未设置文字/模糊/复杂混淆时，使用自然满铺，消除一切被黑边夹逼感
+            const isPlainColor = (
+                currentCoverMode === 'color' &&
+                coverEffectsConfig.confusion === 'none' &&
+                coverEffectsConfig.blurRadius === 0 &&
+                (!coverEffectsConfig.text || !coverEffectsConfig.text.trim())
+            );
+
+            if (isPlainColor) {
+                previewCanvas.classList.add("fill-stage");
+                renderCoverToCanvas(previewCanvas, 320, 120, 'cover-fit');
+            } else {
+                previewCanvas.classList.remove("fill-stage");
+                renderCoverToCanvas(previewCanvas, targetW, targetH, 'cover-fit');
+            }
         }
 
         /**
@@ -3720,6 +3857,7 @@
                 } else {
                     customPanel.style.display = "none";
                 }
+                updateCoverLivePreview();
             });
 
             checkAspect.addEventListener("change", (e) => {
@@ -3739,6 +3877,7 @@
                     inputH.value = computedH;
                     customResState.height = computedH;
                 }
+                updateCoverLivePreview();
             });
 
             inputH.addEventListener("input", () => {
@@ -3749,6 +3888,7 @@
                     inputW.value = computedW;
                     customResState.width = computedW;
                 }
+                updateCoverLivePreview();
             });
         }
 
@@ -3768,15 +3908,35 @@
             const listContainer = document.getElementById("hidden-frame-list");
             const badgeCount = document.getElementById("badge-frame-count");
             const batchToolbar = document.getElementById("batch-toolbar");
+            const dropHidden = document.getElementById("drop-hidden");
+            const uploadHiddenTitle = document.getElementById("upload-hidden-title");
 
             listContainer.innerHTML = "";
             badgeCount.textContent = `已添加 ${hiddenFrames.length} 帧`;
 
             if (hiddenFrames.length === 0) {
                 batchToolbar.style.display = "none";
+                if (dropHidden) {
+                    dropHidden.classList.remove("compact");
+                    dropHidden.style.minHeight = "120px";
+                    dropHidden.style.padding = "16px";
+                }
+                if (uploadHiddenTitle) {
+                    uploadHiddenTitle.textContent = "点击或拖拽添加隐藏图片 / 动图 / 视频";
+                }
+                updateCoverLivePreview();
                 return;
             }
+
             batchToolbar.style.display = "flex";
+            if (dropHidden) {
+                dropHidden.classList.add("compact");
+                dropHidden.style.minHeight = "";
+                dropHidden.style.padding = "";
+            }
+            if (uploadHiddenTitle) {
+                uploadHiddenTitle.textContent = "追加更多隐藏图片 / 动图 / 视频（可直接拖拽至此处）";
+            }
 
             hiddenFrames.forEach((frame, index) => {
                 const itemDiv = document.createElement("div");
@@ -3913,9 +4073,7 @@
             });
 
             syncCoverFrameOptions();
-            if (currentCoverMode === 'frame') {
-                updateCoverLivePreview();
-            }
+            updateCoverLivePreview();
         }
 
         /**
