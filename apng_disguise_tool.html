@@ -1608,7 +1608,7 @@
                 <div class="trimmer-info-row">
                     <div class="trimmer-info-top">
                         <div id="trimmer-time-display" class="trimmer-time-display">
-                            起始: 00:00.0 | 结束: 00:05.0 | 时长: 5.0s
+                            起始: 00:00.0 | 结束: 全部 | 时长: 默认全选
                         </div>
                         <div id="trimmer-source-meta" class="trimmer-source-meta">
                             原视频: 正在检测...
@@ -1643,6 +1643,7 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button id="btn-trimmer-select-all" class="btn-modal" type="button">⟲ 全选整个视频</button>
                 <button id="btn-trimmer-preview" class="btn-modal" type="button">▶ 试看选定时段</button>
                 <button id="btn-trimmer-cancel" class="btn-modal" type="button">取消</button>
                 <button id="btn-trimmer-confirm" class="btn-modal primary" type="button">✔ 确认抽取此时段</button>
@@ -3418,7 +3419,7 @@
                 trimmerState.nativeFps = detectedFps;
                 trimmerState.videoDuration = dur;
                 trimmerState.startTime = 0;
-                trimmerState.endTime = Math.min(dur, 5.0);
+                trimmerState.endTime = dur; // 默认全选整个视频时长
 
                 // 更新原视频信息标签
                 const metaEl = document.getElementById("trimmer-source-meta");
@@ -3618,6 +3619,19 @@
             });
 
             // 试看按钮
+            // 全选整个视频时段
+            const btnSelectAll = document.getElementById("btn-trimmer-select-all");
+            if (btnSelectAll) {
+                btnSelectAll.addEventListener("click", () => {
+                    if (trimmerState.videoDuration > 0) {
+                        trimmerState.startTime = 0;
+                        trimmerState.endTime = trimmerState.videoDuration;
+                        updateTrimmerDisplay();
+                        video.currentTime = 0;
+                    }
+                });
+            }
+
             document.getElementById("btn-trimmer-preview").addEventListener("click", () => {
                 video.currentTime = trimmerState.startTime;
                 video.play();
