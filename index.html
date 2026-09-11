@@ -1643,7 +1643,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="btn-trimmer-select-all" class="btn-modal" type="button">⟲ 全选整个视频</button>
+                <button id="btn-trimmer-select-all" class="btn-modal" type="button">全选</button>
                 <button id="btn-trimmer-preview" class="btn-modal" type="button">▶ 试看选定时段</button>
                 <button id="btn-trimmer-cancel" class="btn-modal" type="button">取消</button>
                 <button id="btn-trimmer-confirm" class="btn-modal primary" type="button">✔ 确认抽取此时段</button>
@@ -3100,6 +3100,121 @@
          * @see Callers:
          *  - `window.DOMContentLoaded`
          */
+        /**
+         * 通过读取文件首部的二进制魔数（Magic Numbers）精准识别媒体真实类型。
+         *
+         * 不依赖操作系统扩展名后缀或客户端 MIME 推断，支持无后缀或修改后缀的真实格式识别。
+         *
+         * @param {File} file - 原生待识别文件对象。
+         * @returns {Promise<{category: 'image'|'animated_image'|'video'|'unknown', mime: string, isAnimated: boolean}>} 格式识别判定结果。
+         * @see Callers:
+         *  - `setupCoverImageUpload.processCoverFile`: 封面图片格式判定。
+         *  - `processHiddenFiles`: 隐藏序列媒体（动图/视频/静态图）分流处理。
+         */
+        async function detectMediaFileType(file) {
+            if (!file || file.size < 4) {
+                return { category: 'unknown', mime: '', isAnimated: false };
+            }
+
+            const headerSlice = await file.slice(0, 64).arrayBuffer();
+            const uint8 = new Uint8Array(headerSlice);
+
+            // 1. PNG 图像: 89 50 4E 47 0D 0A 1A 0A
+            if (uint8.length >= 8 &&
+                uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47 &&
+                uint8[4] === 0x0D && uint8[5] === 0x0A && uint8[6] === 0x1A && uint8[7] === 0x0A) {
+                return { category: 'image', mime: 'image/png', isAnimated: false };
+            }
+
+            // 2. JPEG 图像: FF D8 FF
+            if (uint8[0] === 0xFF && uint8[1] === 0xD8 && uint8[2] === 0xFF) {
+                return { category: 'image', mime: 'image/jpeg', isAnimated: false };
+            }
+
+            // 3. GIF 动态图像: GIF87a 或 GIF89a
+            if (uint8.length >= 6 &&
+                uint8[0] === 0x47 && uint8[1] === 0x49 && uint8[2] === 0x46 && uint8[3] === 0x38 &&
+                (uint8[4] === 0x37 || uint8[4] === 0x39) && uint8[5] === 0x61) {
+                return { category: 'animated_image', mime: 'image/gif', isAnimated: true };
+            }
+
+            // 4. WebP: RIFF .... WEBP
+            if (uint8.length >= 12 &&
+                uint8[0] === 0x52 && uint8[1] === 0x49 && uint8[2] === 0x46 && uint8[3] === 0x46 &&
+                uint8[8] === 0x57 && uint8[9] === 0x45 && uint8[10] === 0x42 && uint8[11] === 0x50) {
+                let isAnimWebP = false;
+                if (uint8.length >= 21 &&
+                    uint8[12] === 0x56 && uint8[13] === 0x50 && uint8[14] === 0x38 && uint8[15] === 0x58) {
+                    const flags = uint8[20];
+                    if ((flags & 0x02) !== 0) {
+                        isAnimWebP = true;
+                    }
+                }
+                return {
+                    category: isAnimWebP ? 'animated_image' : 'image',
+                    mime: 'image/webp',
+                    isAnimated: isAnimWebP
+                };
+            }
+
+            // 5. BMP 图像: 42 4D ('BM')
+            if (uint8[0] === 0x42 && uint8[1] === 0x4D) {
+                return { category: 'image', mime: 'image/bmp', isAnimated: false };
+            }
+
+            // 6. MP4 / MOV (ISO Base Media File Format): 4..8 为 'ftyp' 或 'moov'
+            if (uint8.length >= 8) {
+                const tag = String.fromCharCode(uint8[4], uint8[5], uint8[6], uint8[7]);
+                if (tag === 'ftyp') {
+                    if (uint8.length >= 12) {
+                        const brand = String.fromCharCode(uint8[8], uint8[9], uint8[10], uint8[11]);
+                        if (brand === 'avif' || brand === 'avis') {
+                            return { category: 'image', mime: 'image/avif', isAnimated: brand === 'avis' };
+                        }
+                    }
+                    return { category: 'video', mime: 'video/mp4', isAnimated: true };
+                }
+                if (tag === 'moov') {
+                    return { category: 'video', mime: 'video/mp4', isAnimated: true };
+                }
+            }
+
+            // 7. WebM / Matroska: 1A 45 DF A3
+            if (uint8[0] === 0x1A && uint8[1] === 0x45 && uint8[2] === 0xDF && uint8[3] === 0xA3) {
+                return { category: 'video', mime: 'video/webm', isAnimated: true };
+            }
+
+            // 8. AVI: RIFF .... AVI
+            if (uint8.length >= 12 &&
+                uint8[0] === 0x52 && uint8[1] === 0x49 && uint8[2] === 0x46 && uint8[3] === 0x46 &&
+                uint8[8] === 0x41 && uint8[9] === 0x56 && uint8[10] === 0x49 && uint8[11] === 0x20) {
+                return { category: 'video', mime: 'video/x-msvideo', isAnimated: true };
+            }
+
+            // 9. SVG 矢量图像: <svg 或 <?xml
+            const str = String.fromCharCode(...uint8.subarray(0, Math.min(uint8.length, 32))).trim();
+            if (str.startsWith('<svg') || str.startsWith('<?xml')) {
+                return { category: 'image', mime: 'image/svg+xml', isAnimated: false };
+            }
+
+            // 10. 文件浏览器声明 MIME 类型（辅助验证）
+            if (file.type && file.type.startsWith('image/')) {
+                return { category: 'image', mime: file.type, isAnimated: file.type === 'image/gif' };
+            }
+            if (file.type && file.type.startsWith('video/')) {
+                return { category: 'video', mime: file.type, isAnimated: true };
+            }
+
+            return { category: 'unknown', mime: '', isAnimated: false };
+        }
+
+        /**
+         * 初始化封面图片拖拽及文件选择器事件监听。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `window.DOMContentLoaded`
+         */
         function setupCoverImageUpload() {
             const dropZone = document.getElementById("drop-cover");
             const fileInput = document.getElementById("input-cover");
@@ -3141,9 +3256,10 @@
              *  - `setupCoverImageUpload.dropZone.ondrop`
              *  - `setupCoverImageUpload.fileInput.onchange`
              */
-            function processCoverFile(file) {
-                if (!file.type.startsWith("image/")) {
-                    showError("请选择有效的图片文件格式作为封面。");
+            async function processCoverFile(file) {
+                const detected = await detectMediaFileType(file);
+                if (detected.category !== 'image' && detected.category !== 'animated_image') {
+                    showError("请选择有效的图片文件格式作为封面（支持 PNG、JPEG、GIF、WebP 等）。");
                     return;
                 }
                 const reader = new FileReader();
@@ -3696,16 +3812,18 @@
 
             for (const file of fileList) {
                 try {
-                    if (file.type.startsWith("video/")) {
+                    const detected = await detectMediaFileType(file);
+
+                    if (detected.category === 'video') {
                         // 呼出专属的两端拖拽裁剪器让用户直观框选时段
                         openVideoTrimmer(file);
                         return; // 单次视频由弹窗接管，处理完后可继续追加
-                    } else if (file.type === "image/gif" || (file.type === "image/webp" && typeof window.ImageDecoder !== "undefined")) {
+                    } else if (detected.category === 'animated_image' || (detected.mime === 'image/webp' && detected.isAnimated)) {
                         // 动图文件基于 ImageDecoder 解码
                         setLoadingState(true, `正在解析动图 ${file.name}...`);
                         const decoded = await decodeAnimatedImage(file);
                         hiddenFrames.push(...decoded);
-                    } else if (file.type.startsWith("image/")) {
+                    } else if (detected.category === 'image') {
                         // 普通静态图片直接读取
                         await new Promise((resolve, reject) => {
                             const reader = new FileReader();
