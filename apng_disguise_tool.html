@@ -3113,7 +3113,7 @@
          */
         async function detectMediaFileType(file) {
             if (!file || file.size < 4) {
-                return { category: 'unknown', mime: '', isAnimated: false };
+                return { category: 'unknown', mime: '', isAnimated: false, formatLabel: '未知' };
             }
 
             const headerSlice = await file.slice(0, 64).arrayBuffer();
@@ -3123,19 +3123,19 @@
             if (uint8.length >= 8 &&
                 uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47 &&
                 uint8[4] === 0x0D && uint8[5] === 0x0A && uint8[6] === 0x1A && uint8[7] === 0x0A) {
-                return { category: 'image', mime: 'image/png', isAnimated: false };
+                return { category: 'image', mime: 'image/png', isAnimated: false, formatLabel: 'PNG' };
             }
 
             // 2. JPEG 图像: FF D8 FF
             if (uint8[0] === 0xFF && uint8[1] === 0xD8 && uint8[2] === 0xFF) {
-                return { category: 'image', mime: 'image/jpeg', isAnimated: false };
+                return { category: 'image', mime: 'image/jpeg', isAnimated: false, formatLabel: 'JPEG' };
             }
 
             // 3. GIF 动态图像: GIF87a 或 GIF89a
             if (uint8.length >= 6 &&
                 uint8[0] === 0x47 && uint8[1] === 0x49 && uint8[2] === 0x46 && uint8[3] === 0x38 &&
                 (uint8[4] === 0x37 || uint8[4] === 0x39) && uint8[5] === 0x61) {
-                return { category: 'animated_image', mime: 'image/gif', isAnimated: true };
+                return { category: 'animated_image', mime: 'image/gif', isAnimated: true, formatLabel: 'GIF' };
             }
 
             // 4. WebP: RIFF .... WEBP
@@ -3153,13 +3153,14 @@
                 return {
                     category: isAnimWebP ? 'animated_image' : 'image',
                     mime: 'image/webp',
-                    isAnimated: isAnimWebP
+                    isAnimated: isAnimWebP,
+                    formatLabel: isAnimWebP ? '动态 WebP' : 'WebP'
                 };
             }
 
             // 5. BMP 图像: 42 4D ('BM')
             if (uint8[0] === 0x42 && uint8[1] === 0x4D) {
-                return { category: 'image', mime: 'image/bmp', isAnimated: false };
+                return { category: 'image', mime: 'image/bmp', isAnimated: false, formatLabel: 'BMP' };
             }
 
             // 6. MP4 / MOV (ISO Base Media File Format): 4..8 为 'ftyp' 或 'moov'
@@ -3169,43 +3170,45 @@
                     if (uint8.length >= 12) {
                         const brand = String.fromCharCode(uint8[8], uint8[9], uint8[10], uint8[11]);
                         if (brand === 'avif' || brand === 'avis') {
-                            return { category: 'image', mime: 'image/avif', isAnimated: brand === 'avis' };
+                            return { category: 'image', mime: 'image/avif', isAnimated: brand === 'avis', formatLabel: brand === 'avis' ? '动态 AVIF' : 'AVIF' };
                         }
                     }
-                    return { category: 'video', mime: 'video/mp4', isAnimated: true };
+                    return { category: 'video', mime: 'video/mp4', isAnimated: true, formatLabel: 'MP4' };
                 }
                 if (tag === 'moov') {
-                    return { category: 'video', mime: 'video/mp4', isAnimated: true };
+                    return { category: 'video', mime: 'video/mp4', isAnimated: true, formatLabel: 'MP4' };
                 }
             }
 
             // 7. WebM / Matroska: 1A 45 DF A3
             if (uint8[0] === 0x1A && uint8[1] === 0x45 && uint8[2] === 0xDF && uint8[3] === 0xA3) {
-                return { category: 'video', mime: 'video/webm', isAnimated: true };
+                return { category: 'video', mime: 'video/webm', isAnimated: true, formatLabel: 'WebM' };
             }
 
             // 8. AVI: RIFF .... AVI
             if (uint8.length >= 12 &&
                 uint8[0] === 0x52 && uint8[1] === 0x49 && uint8[2] === 0x46 && uint8[3] === 0x46 &&
                 uint8[8] === 0x41 && uint8[9] === 0x56 && uint8[10] === 0x49 && uint8[11] === 0x20) {
-                return { category: 'video', mime: 'video/x-msvideo', isAnimated: true };
+                return { category: 'video', mime: 'video/x-msvideo', isAnimated: true, formatLabel: 'AVI' };
             }
 
             // 9. SVG 矢量图像: <svg 或 <?xml
             const str = String.fromCharCode(...uint8.subarray(0, Math.min(uint8.length, 32))).trim();
             if (str.startsWith('<svg') || str.startsWith('<?xml')) {
-                return { category: 'image', mime: 'image/svg+xml', isAnimated: false };
+                return { category: 'image', mime: 'image/svg+xml', isAnimated: false, formatLabel: 'SVG' };
             }
 
             // 10. 文件浏览器声明 MIME 类型（辅助验证）
             if (file.type && file.type.startsWith('image/')) {
-                return { category: 'image', mime: file.type, isAnimated: file.type === 'image/gif' };
+                const subType = (file.type.split('/')[1] || '图片').toUpperCase();
+                return { category: 'image', mime: file.type, isAnimated: file.type === 'image/gif', formatLabel: subType };
             }
             if (file.type && file.type.startsWith('video/')) {
-                return { category: 'video', mime: file.type, isAnimated: true };
+                const subType = (file.type.split('/')[1] || '视频').toUpperCase();
+                return { category: 'video', mime: file.type, isAnimated: true, formatLabel: subType };
             }
 
-            return { category: 'unknown', mime: '', isAnimated: false };
+            return { category: 'unknown', mime: '', isAnimated: false, formatLabel: '未知' };
         }
 
         /**
@@ -3262,27 +3265,32 @@
                     showError("请选择有效的图片文件格式作为封面（支持 PNG、JPEG、GIF、WebP 等）。");
                     return;
                 }
-                const reader = new FileReader();
-                reader.onload = (loadEvt) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        coverImageState.img = img;
-                        coverImageState.file = file;
-                        coverImageState.width = img.naturalWidth;
-                        coverImageState.height = img.naturalHeight;
+                const imageMime = detected.mime || file.type || "image/png";
+                const cleanBlob = (file.type === imageMime) ? file : new Blob([file], { type: imageMime });
+                const blobUrl = URL.createObjectURL(cleanBlob);
+                const img = new Image();
+                img.onload = () => {
+                    URL.revokeObjectURL(blobUrl);
+                    coverImageState.img = img;
+                    coverImageState.file = file;
+                    coverImageState.width = img.naturalWidth;
+                    coverImageState.height = img.naturalHeight;
 
-                        previewImg.src = loadEvt.target.result;
-                        previewImg.style.display = "block";
-                        hintText.style.display = "none";
-                        infoDiv.style.display = "block";
-                        infoDiv.textContent = `${file.name} (${img.naturalWidth} × ${img.naturalHeight})`;
+                    previewImg.src = img.src;
+                    previewImg.style.display = "block";
+                    hintText.style.display = "none";
+                    infoDiv.style.display = "block";
+                    infoDiv.textContent = `${file.name} [识别格式: ${detected.formatLabel}] (${img.naturalWidth} × ${img.naturalHeight})`;
 
-                        updateCoverLivePreview();
-                        checkReadyState();
-                    };
-                    img.src = loadEvt.target.result;
+                    updateCoverLivePreview();
+                    checkReadyState();
+                    showToast(`封面成功识别为 ${detected.formatLabel} 并载入`, "success");
                 };
-                reader.readAsDataURL(file);
+                img.onerror = () => {
+                    URL.revokeObjectURL(blobUrl);
+                    showError(`无法解码封面图片: ${file.name}`);
+                };
+                img.src = blobUrl;
             }
         }
 
@@ -3344,19 +3352,21 @@
          * 解码动态图像文件（GIF/动图 WebP）并提取所有动画帧及各帧持续时长。
          *
          * @param {File} file - 动态图像文件对象。
+         * @param {string} [mimeType="image/gif"] - 经二进制魔数探测出的真实 MIME 类型（严禁直接依赖不可靠的 file.type）。
+         * @param {string} [formatLabel="动图"] - 规范的格式名称标签（用于帧信息展示）。
          * @returns {Promise<HiddenFrameItem[]>} 解码出的动画帧列表。
          * @throws {Error} 当浏览器不支持 ImageDecoder 或解码失败时抛出。
          * @see Callers:
          *  - `processHiddenFiles`: 处理上传的隐藏媒体文件时调用。
          */
-        async function decodeAnimatedImage(file) {
+        async function decodeAnimatedImage(file, mimeType = "image/gif", formatLabel = "动图") {
             if (typeof window.ImageDecoder === "undefined") {
                 throw new Error("当前浏览器不支持 WebCodecs ImageDecoder 原生解码 API，请使用 Chrome/Edge 现代浏览器打开。");
             }
 
             const imageDecoder = new ImageDecoder({
                 data: file.stream(),
-                type: file.type || "image/gif"
+                type: mimeType || "image/gif"
             });
 
             await imageDecoder.tracks.ready;
@@ -3369,7 +3379,7 @@
             const frames = [];
 
             for (let i = 0; i < frameCount; i++) {
-                setLoadingState(true, `正在解析动图帧序列: 第 ${i + 1} / ${frameCount} 帧...`);
+                setLoadingState(true, `正在解析动图帧序列 [${formatLabel}]: 第 ${i + 1} / ${frameCount} 帧...`);
                 const result = await imageDecoder.decode({ frameIndex: i });
                 const videoFrame = result.image;
 
@@ -3393,7 +3403,7 @@
                     id: `frame_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
                     img: img,
                     file: file,
-                    title: `${file.name} - 帧 ${i + 1}`,
+                    title: `${file.name} [${formatLabel}] - 帧 ${i + 1}`,
                     width: img.naturalWidth,
                     height: img.naturalHeight,
                     delayMs: durationMs
@@ -3506,16 +3516,19 @@
          * 打开视频裁剪对话框并初始化时间轴、原生帧率检测与监看画面。
          *
          * @param {File} file - 待裁剪的视频文件对象。
+         * @param {Object} [detected] - 经二进制魔数识别出的文件类型元数据对象。
          * @returns {void}
          * @see Callers:
          *  - `processHiddenFiles`: 当检测到视频文件时呼出。
          */
-        function openVideoTrimmer(file) {
+        function openVideoTrimmer(file, detected) {
             trimmerState.file = file;
             if (trimmerState.objectUrl) {
                 URL.revokeObjectURL(trimmerState.objectUrl);
             }
-            trimmerState.objectUrl = URL.createObjectURL(file);
+            const videoMime = (detected && detected.mime) ? detected.mime : (file.type || "video/mp4");
+            const cleanBlob = (file.type === videoMime) ? file : new Blob([file], { type: videoMime });
+            trimmerState.objectUrl = URL.createObjectURL(cleanBlob);
 
             const video = document.getElementById("trimmer-video");
             video.src = trimmerState.objectUrl;
@@ -3816,37 +3829,41 @@
 
                     if (detected.category === 'video') {
                         // 呼出专属的两端拖拽裁剪器让用户直观框选时段
-                        openVideoTrimmer(file);
+                        openVideoTrimmer(file, detected);
                         return; // 单次视频由弹窗接管，处理完后可继续追加
                     } else if (detected.category === 'animated_image' || (detected.mime === 'image/webp' && detected.isAnimated)) {
                         // 动图文件基于 ImageDecoder 解码
-                        setLoadingState(true, `正在解析动图 ${file.name}...`);
-                        const decoded = await decodeAnimatedImage(file);
+                        setLoadingState(true, `正在解析动图 ${file.name} [${detected.formatLabel}]...`);
+                        const decoded = await decodeAnimatedImage(file, detected.mime, detected.formatLabel);
                         hiddenFrames.push(...decoded);
+                        showToast(`已成功识别 ${file.name} 为 ${detected.formatLabel} 动图，解析 ${decoded.length} 帧`, "success");
                     } else if (detected.category === 'image') {
-                        // 普通静态图片直接读取
+                        // 普通静态图片使用真实检测 MIME 封装读取，规避错误后缀污染
+                        const imageMime = detected.mime || file.type || "image/png";
+                        const cleanBlob = (file.type === imageMime) ? file : new Blob([file], { type: imageMime });
+                        const blobUrl = URL.createObjectURL(cleanBlob);
                         await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = (loadEvt) => {
-                                const img = new Image();
-                                img.onload = () => {
-                                    hiddenFrames.push({
-                                        id: `frame_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                                        img: img,
-                                        file: file,
-                                        title: file.name,
-                                        width: img.naturalWidth,
-                                        height: img.naturalHeight,
-                                        delayMs: defaultDelay
-                                    });
-                                    resolve();
-                                };
-                                img.onerror = () => reject(new Error(`无法解码图片: ${file.name}`));
-                                img.src = loadEvt.target.result;
+                            const img = new Image();
+                            img.onload = () => {
+                                URL.revokeObjectURL(blobUrl);
+                                hiddenFrames.push({
+                                    id: `frame_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                                    img: img,
+                                    file: file,
+                                    title: `${file.name} [${detected.formatLabel}]`,
+                                    width: img.naturalWidth,
+                                    height: img.naturalHeight,
+                                    delayMs: defaultDelay
+                                });
+                                resolve();
                             };
-                            reader.onerror = () => reject(new Error(`读取文件失败: ${file.name}`));
-                            reader.readAsDataURL(file);
+                            img.onerror = () => {
+                                URL.revokeObjectURL(blobUrl);
+                                reject(new Error(`无法解码图片: ${file.name}`));
+                            };
+                            img.src = blobUrl;
                         });
+                        showToast(`已成功识别 ${file.name} 为 ${detected.formatLabel} 图片并载入`, "success");
                     } else {
                         showError(`忽略不支持的媒体文件类型: ${file.name}`);
                     }
