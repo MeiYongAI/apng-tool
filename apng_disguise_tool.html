@@ -1560,7 +1560,10 @@
         <div id="result-section" class="result-section">
             <h3 style="margin-bottom: 8px;">合成成功！</h3>
             <div style="margin-bottom: 14px;">
+                <div style="display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <span id="result-dimensions" class="file-size-badge" style="display: none;">分辨率: -</span>
                 <span id="result-file-size" class="file-size-badge" style="display: none;">文件大小: 0 KB</span>
+            </div>
             </div>
             <div class="result-preview">
                 <div class="preview-box">
@@ -2598,29 +2601,32 @@
             const badge = document.getElementById("cover-preview-ratio-badge");
             if (!previewCanvas) return;
 
+            const presetSelect = document.getElementById("select-resolution-preset");
+            const preset = presetSelect ? presetSelect.value : currentResPreset;
+
             // 获取当前所选输出模式或帧的目标长宽比
             let targetW = 320;
             let targetH = 180;
             let ratioLabel = "16:9 标清";
 
-            if (hiddenFrames.length > 0) {
-                if (currentResPreset === 'native') {
-                    targetW = hiddenFrames[0].width;
-                    targetH = hiddenFrames[0].height;
-                    ratioLabel = `原图 ${targetW} × ${targetH}`;
-                } else if (currentResPreset === 'preset_1080p') {
-                    targetW = 1920; targetH = 1080; ratioLabel = "1080P";
-                } else if (currentResPreset === 'preset_720p') {
-                    targetW = 1280; targetH = 720; ratioLabel = "720P";
-                } else if (currentResPreset === 'preset_480p') {
-                    targetW = 854; targetH = 480; ratioLabel = "480P";
-                } else if (currentResPreset === 'preset_360p') {
-                    targetW = 640; targetH = 360; ratioLabel = "360P";
-                } else if (currentResPreset === 'custom') {
-                    targetW = Math.max(16, parseInt(document.getElementById("input-custom-width")?.value, 10) || hiddenFrames[0].width);
-                    targetH = Math.max(16, parseInt(document.getElementById("input-custom-height")?.value, 10) || hiddenFrames[0].height);
-                    ratioLabel = `自定义 ${targetW} × ${targetH}`;
-                }
+            if (preset === 'preset_1080p') {
+                targetW = 1920; targetH = 1080; ratioLabel = "1080P (1920×1080)";
+            } else if (preset === 'preset_720p') {
+                targetW = 1280; targetH = 720; ratioLabel = "720P (1280×720)";
+            } else if (preset === 'preset_480p') {
+                targetW = 854; targetH = 480; ratioLabel = "480P (854×480)";
+            } else if (preset === 'preset_360p') {
+                targetW = 640; targetH = 360; ratioLabel = "360P (640×360)";
+            } else if (preset === 'custom') {
+                const inputW = document.getElementById("input-custom-width");
+                const inputH = document.getElementById("input-custom-height");
+                targetW = Math.max(16, parseInt(inputW ? inputW.value : "1280", 10) || 1280);
+                targetH = Math.max(16, parseInt(inputH ? inputH.value : "720", 10) || 720);
+                ratioLabel = `自定义 ${targetW} × ${targetH}`;
+            } else if (hiddenFrames.length > 0) {
+                targetW = hiddenFrames[0].width;
+                targetH = hiddenFrames[0].height;
+                ratioLabel = `原图 ${targetW} × ${targetH}`;
             } else if (currentCoverMode === 'image' && coverImageState.img) {
                 targetW = coverImageState.width || 320;
                 targetH = coverImageState.height || 180;
@@ -3846,20 +3852,24 @@
 
             const baseWidth = hiddenFrames[0].width;
             const baseHeight = hiddenFrames[0].height;
+            const presetSelect = document.getElementById("select-resolution-preset");
+            const preset = presetSelect ? presetSelect.value : currentResPreset;
 
-            if (currentResPreset === 'native') {
+            if (preset === 'native') {
                 return { targetWidth: baseWidth, targetHeight: baseHeight };
-            } else if (currentResPreset === 'preset_1080p') {
+            } else if (preset === 'preset_1080p') {
                 return { targetWidth: 1920, targetHeight: 1080 };
-            } else if (currentResPreset === 'preset_720p') {
+            } else if (preset === 'preset_720p') {
                 return { targetWidth: 1280, targetHeight: 720 };
-            } else if (currentResPreset === 'preset_480p') {
+            } else if (preset === 'preset_480p') {
                 return { targetWidth: 854, targetHeight: 480 };
-            } else if (currentResPreset === 'preset_360p') {
+            } else if (preset === 'preset_360p') {
                 return { targetWidth: 640, targetHeight: 360 };
-            } else if (currentResPreset === 'custom') {
-                const w = Math.max(16, Math.min(4096, parseInt(document.getElementById("input-custom-width").value, 10) || 1280));
-                const h = Math.max(16, Math.min(4096, parseInt(document.getElementById("input-custom-height").value, 10) || 720));
+            } else if (preset === 'custom') {
+                const inputW = document.getElementById("input-custom-width");
+                const inputH = document.getElementById("input-custom-height");
+                const w = Math.max(16, Math.min(4096, parseInt(inputW ? inputW.value : "1280", 10) || 1280));
+                const h = Math.max(16, Math.min(4096, parseInt(inputH ? inputH.value : "720", 10) || 720));
                 return { targetWidth: w, targetHeight: h };
             }
 
@@ -3868,6 +3878,8 @@
 
         /**
          * 初始化全局输出分辨率与等比锁定联动监听事件。
+         *
+         * 同步当前表单初始选择，确保页面刷新或初始预选与运行时状态保持绝对一致。
          *
          * @returns {void}
          * @see Callers:
@@ -3880,11 +3892,19 @@
             const inputH = document.getElementById("input-custom-height");
             const checkAspect = document.getElementById("check-aspect-ratio");
 
-            selectPreset.addEventListener("change", (e) => {
-                currentResPreset = e.target.value;
+            if (!selectPreset) return;
+
+            // 初始挂载时即刻同步 DOM 实际值，防止浏览器表单恢复导致状态脱节
+            currentResPreset = selectPreset.value;
+            if (currentResPreset === 'custom' && customPanel) {
+                customPanel.style.display = "flex";
+            }
+
+            const syncPresetChange = () => {
+                currentResPreset = selectPreset.value;
                 if (currentResPreset === 'custom') {
-                    customPanel.style.display = "flex";
-                    if (hiddenFrames.length > 0) {
+                    if (customPanel) customPanel.style.display = "flex";
+                    if (hiddenFrames.length > 0 && inputW && inputH && (!inputW.value || inputW.value === "1280")) {
                         inputW.value = hiddenFrames[0].width;
                         inputH.value = hiddenFrames[0].height;
                         customResState.width = hiddenFrames[0].width;
@@ -3892,41 +3912,46 @@
                         customResState.aspectRatio = hiddenFrames[0].width / hiddenFrames[0].height;
                     }
                 } else {
-                    customPanel.style.display = "none";
+                    if (customPanel) customPanel.style.display = "none";
                 }
                 updateCoverLivePreview();
-            });
+            };
 
-            checkAspect.addEventListener("change", (e) => {
-                customResState.lockAspect = e.target.checked;
-                const curW = parseInt(inputW.value, 10) || 1280;
-                const curH = parseInt(inputH.value, 10) || 720;
-                if (curH > 0) {
-                    customResState.aspectRatio = curW / curH;
-                }
-            });
+            selectPreset.addEventListener("change", syncPresetChange);
+            selectPreset.addEventListener("input", syncPresetChange);
 
-            inputW.addEventListener("input", () => {
-                const w = Math.max(16, Math.min(4096, parseInt(inputW.value, 10) || 1280));
-                customResState.width = w;
-                if (customResState.lockAspect && customResState.aspectRatio > 0) {
-                    const computedH = Math.max(16, Math.min(4096, Math.round(w / customResState.aspectRatio)));
-                    inputH.value = computedH;
-                    customResState.height = computedH;
-                }
-                updateCoverLivePreview();
-            });
+            if (checkAspect && inputW && inputH) {
+                checkAspect.addEventListener("change", (e) => {
+                    customResState.lockAspect = e.target.checked;
+                    const curW = parseInt(inputW.value, 10) || 1280;
+                    const curH = parseInt(inputH.value, 10) || 720;
+                    if (curH > 0) {
+                        customResState.aspectRatio = curW / curH;
+                    }
+                });
 
-            inputH.addEventListener("input", () => {
-                const h = Math.max(16, Math.min(4096, parseInt(inputH.value, 10) || 720));
-                customResState.height = h;
-                if (customResState.lockAspect && customResState.aspectRatio > 0) {
-                    const computedW = Math.max(16, Math.min(4096, Math.round(h * customResState.aspectRatio)));
-                    inputW.value = computedW;
-                    customResState.width = computedW;
-                }
-                updateCoverLivePreview();
-            });
+                inputW.addEventListener("input", () => {
+                    const w = Math.max(16, Math.min(4096, parseInt(inputW.value, 10) || 1280));
+                    customResState.width = w;
+                    if (customResState.lockAspect && customResState.aspectRatio > 0) {
+                        const computedH = Math.max(16, Math.min(4096, Math.round(w / customResState.aspectRatio)));
+                        inputH.value = computedH;
+                        customResState.height = computedH;
+                    }
+                    updateCoverLivePreview();
+                });
+
+                inputH.addEventListener("input", () => {
+                    const h = Math.max(16, Math.min(4096, parseInt(inputH.value, 10) || 720));
+                    customResState.height = h;
+                    if (customResState.lockAspect && customResState.aspectRatio > 0) {
+                        const computedW = Math.max(16, Math.min(4096, Math.round(h * customResState.aspectRatio)));
+                        inputW.value = computedW;
+                        customResState.width = computedW;
+                    }
+                    updateCoverLivePreview();
+                });
+            }
         }
 
         /**
@@ -4645,10 +4670,19 @@
 
                 displayApngResult(url, fileName);
 
+                const dimBadge = document.getElementById("result-dimensions");
+                if (dimBadge) {
+                    dimBadge.style.display = "inline-block";
+                    dimBadge.textContent = `输出分辨率: ${result.targetWidth} × ${result.targetHeight}`;
+                }
+
                 const sizeBadge = document.getElementById("result-file-size");
                 if (sizeBadge) {
-                    sizeBadge.textContent = formattedSize;
+                    sizeBadge.style.display = "inline-block";
+                    sizeBadge.textContent = `文件大小: ${formattedSize}`;
                 }
+
+                
 
                 showToast("APNG 伪装图片制作完成！", "success");
 
