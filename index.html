@@ -3371,8 +3371,10 @@
                 throw new Error("当前浏览器不支持 WebCodecs ImageDecoder 原生解码 API，请使用 Chrome/Edge 现代浏览器打开。");
             }
 
+            // 使用完整 ArrayBuffer 数据源初始化，避免流式读取导致的 track.frameCount 暂态不全问题
+            const buffer = await file.arrayBuffer();
             const imageDecoder = new ImageDecoder({
-                data: file.stream(),
+                data: buffer,
                 type: mimeType || "image/gif"
             });
 
@@ -3380,6 +3382,11 @@
             const track = imageDecoder.tracks.selectedTrack;
             if (!track) {
                 throw new Error("未能从动图文件中解析出有效的动画轨道。");
+            }
+
+            // 若尚未缓冲完毕，则等待解码器完成全量元数据解析
+            if (!imageDecoder.complete) {
+                await imageDecoder.completed;
             }
 
             const frameCount = track.frameCount;
@@ -3397,7 +3404,7 @@
                 ctx.drawImage(videoFrame, 0, 0);
 
                 // duration 为微秒单位，转换为毫秒
-                const durationMs = videoFrame.duration ? Math.max(50, Math.round(videoFrame.duration / 1000)) : 100;
+                const durationMs = videoFrame.duration ? Math.max(20, Math.round(videoFrame.duration / 1000)) : 100;
                 videoFrame.close();
 
                 const img = new Image();
@@ -3431,7 +3438,7 @@
          * @returns {Promise<HiddenFrameItem[]>} 抽取出的连续帧列表。
          * @throws {Error} 当视频加载失败或元数据无法解析时抛出。
          * @see Callers:
-         *  - `confirmVideoTrimmer`: 裁剪器确认后执行抽帧。
+         *  - `confirmMediaTrimmer`: 裁剪器确认后执行抽帧。
          */
         function extractFramesFromVideo(file, startSec, durationSec, fpsOrTotalCount, isFixedCountMode = false) {
             return new Promise((resolve, reject) => {
@@ -3522,20 +3529,25 @@
         /**
          * 根据时间（秒）检索动图帧序列中对应的帧索引。
          *
+         * 遍历帧数组累加每帧的 delayMs，定位目标时间点所在的帧索引位置。
+         *
          * @param {number} timeSec - 目标秒数。
+         * @param {HiddenFrameItem[]} [frames] - 可选的动图帧数组，缺省时使用 trimmerState.animFrames。
          * @returns {number} 对应的帧索引（0-based）。
          * @see Callers:
-         *  - `renderAnimTrimmerFrameAtTime`
-         *  - `startAnimTrimmerPreview`
-         *  - `confirmMediaTrimmer`
+         *  - `startAnimTrimmerPreview`: 动图循环试看播放。
+         *  - `syncPreviewToCurrentTime`: 指针滑动位置画面同步。
+         *  - `updateTrimmerDisplay`: 刷新选区帧数统计。
+         *  - `confirmMediaTrimmer`: 裁剪时段确认并提取帧切片。
          */
-        function getAnimFrameIndexAtTime(timeSec) {
-            if (!trimmerState.animFrames || trimmerState.animFrames.length === 0) return 0;
+        function getAnimFrameIndexAtTime(timeSec, frames = trimmerState.animFrames) {
+            const frameList = frames || trimmerState.animFrames;
+            if (!frameList || frameList.length === 0) return 0;
             const targetMs = Math.max(0, timeSec * 1000);
             let accumulatedMs = 0;
-            for (let i = 0; i < trimmerState.animFrames.length; i++) {
-                accumulatedMs += trimmerState.animFrames[i].delayMs;
-                if (targetMs <= accumulatedMs || i === trimmerState.animFrames.length - 1) {
+            for (let i = 0; i < frameList.length; i++) {
+                accumulatedMs += frameList[i].delayMs;
+                if (targetMs <= accumulatedMs || i === frameList.length - 1) {
                     return i;
                 }
             }
@@ -4006,27 +4018,26 @@
          *
          * @returns {Promise<void>}
          * @see Callers:
-         *  - `btnTrimmerConfirm.onclick`
+         *  - `btnTrimmerConfirm.onclick`: 点击裁剪弹窗“确认抽取此时段”按钮。
          */
         async function confirmMediaTrimmer() {
             stopTrimmerPlayback();
             const file = trimmerState.file;
             const start = trimmerState.startTime;
-            const duration = trimmerState.endTime - trimmerState.startTime;
+            const endTime = trimmerState.endTime;
+            const duration = Math.max(0.01, endTime - start);
             const mode = trimmerState.mode;
             const category = trimmerState.mediaCategory;
             const animFramesCache = trimmerState.animFrames ? [...trimmerState.animFrames] : [];
-            const fixedCount = trimmerState.fixedFrameCount;
-            const effectiveFps = trimmerState.effectiveFps;
-
-            closeVideoTrimmer();
+            const fixedCount = trimmerState.fixedFrameCount || 30;
+            const effectiveFps = trimmerState.effectiveFps || 20;
 
             if (category === 'animated_image') {
                 try {
                     setLoadingState(true, `正在按选区提取动图 ${file ? file.name : ''} 帧...`);
-                    const startIdx = getAnimFrameIndexAtTime(start);
-                    const endIdx = getAnimFrameIndexAtTime(start + duration);
-                    const sliced = animFramesCache.slice(startIdx, endIdx + 1);
+                    const startIdx = getAnimFrameIndexAtTime(start, animFramesCache);
+                    const endIdx = getAnimFrameIndexAtTime(endTime, animFramesCache);
+                    const sliced = animFramesCache.slice(startIdx, Math.max(startIdx + 1, endIdx + 1));
 
                     let chosenFrames = [];
                     if (mode === 'anim_all') {
@@ -4036,7 +4047,7 @@
                     } else if (mode === 'anim_step_3') {
                         chosenFrames = sliced.filter((_, idx) => idx % 3 === 0);
                     } else if (mode === 'fixed_count') {
-                        const targetCount = trimmerState.fixedFrameCount || 30;
+                        const targetCount = fixedCount;
                         if (sliced.length <= targetCount) {
                             chosenFrames = sliced;
                         } else {
@@ -4054,39 +4065,43 @@
                         chosenFrames = [sliced[0]];
                     }
 
-                    hiddenFrames.push(...chosenFrames);
+                    // 确保抽取的每个帧在追加到隐藏序列时拥有唯一的 DOM 元素 ID
+                    const newFrames = chosenFrames.map((f, idx) => ({
+                        ...f,
+                        id: `frame_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 6)}`
+                    }));
+
+                    hiddenFrames.push(...newFrames);
+                    closeVideoTrimmer();
                     renderHiddenFrameList();
                     checkReadyState();
-                    showToast(`已成功从动图抽取 ${chosenFrames.length} 帧并追加至隐藏帧`, "success");
+                    showToast(`已成功从动图抽取 ${newFrames.length} 帧并追加至隐藏帧`, "success");
                 } catch (err) {
                     showError(`动图帧提取失败: ${err.message}`);
                 } finally {
                     setLoadingState(false);
                 }
             } else {
-                // 视频抽帧逻辑
-                const isFixedCount = (mode === 'fixed_count');
-                const targetParam = isFixedCount ? fixedCount : effectiveFps;
-
+                closeVideoTrimmer();
+                setLoadingState(true, `正在按设定帧率抽取视频 ${file ? file.name : ''}...`);
                 try {
-                    setLoadingState(true, `正在按设定帧率抽取视频 ${file.name}...`);
+                    const isFixedCount = (mode === 'fixed_count');
+                    const targetParam = isFixedCount ? fixedCount : effectiveFps;
                     const extracted = await extractFramesFromVideo(file, start, duration, targetParam, isFixedCount);
+                    if (extracted.length === 0) {
+                        throw new Error("从视频选定时段中未抽取到有效图像。");
+                    }
                     hiddenFrames.push(...extracted);
                     renderHiddenFrameList();
                     checkReadyState();
                     showToast(`已成功从视频抽取 ${extracted.length} 帧并追加至隐藏帧`, "success");
                 } catch (err) {
-                    showError("视频时段抽帧失败: " + err.message);
+                    showError(`视频时段抽帧失败: ${err.message}`);
                 } finally {
                     setLoadingState(false);
                 }
             }
         }
-
-        /**
-         * 兼容性视频裁剪确认别名。
-         */
-        const confirmVideoTrimmer = confirmMediaTrimmer;
 
         /**
          * 处理用户上传的隐藏文件列表（分流静态图片、动态图片与视频）。
@@ -4381,7 +4396,7 @@
          * @returns {void}
          * @see Callers:
          *  - `processHiddenFiles`
-         *  - `confirmVideoTrimmer`
+         *  - `confirmMediaTrimmer`
          *  - `moveFrame`
          *  - `removeFrame`
          *  - `clearAllFrames`
