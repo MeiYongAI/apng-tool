@@ -856,6 +856,14 @@
                         <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
                             <option value="none" selected>不混淆（保持原样）</option>
                             <option value="pixelate">马赛克像素化</option>
+                            <option value="rgb_split">RGB 色散重影 (赛博朋克)</option>
+                            <option value="scanline">CRT 扫描线与错位拉丝</option>
+                            <option value="jigsaw">拼图碎纸机打乱 (Tile Shuffle)</option>
+                            <option value="swirl">黑洞漩涡扭曲 (Vortex Twirl)</option>
+                            <option value="halftone">波普半色调网点 (Pop Dots)</option>
+                            <option value="ascii">极客 ASCII 字符画 (Terminal)</option>
+                            <option value="edge">霓虹线框轮廓 (Cyber Edge)</option>
+                            <option value="caution">黄黑警戒安全带 (Caution Tape)</option>
                             <option value="invert">色彩反转（负片）</option>
                             <option value="grayscale">黑白灰度化</option>
                             <option value="noise">随机噪点干扰</option>
@@ -1136,7 +1144,7 @@
          * 封面修饰与混淆特效配置。
          */
         const coverEffectsConfig = {
-            confusion: 'none', // 'none' | 'pixelate' | 'invert' | 'grayscale' | 'noise'
+            confusion: 'none', // 'none' | 'pixelate' | 'invert' | 'grayscale' | 'noise' | 'rgb_split' | 'scanline' | 'jigsaw' | 'swirl' | 'halftone' | 'ascii' | 'edge' | 'caution'
             pixelSize: 16,
             blurRadius: 0,
             text: '',
@@ -1457,6 +1465,351 @@
         }
 
         /**
+         * 应用 RGB 色散红蓝重影混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number} [offset=14] - 红色通道与蓝色通道的像素分离位移量。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyRgbSplit(ctx, width, height, offset = 14) {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+            const srcCopy = new Uint8ClampedArray(data);
+
+            for (let y = 0; y < height; y++) {
+                const rowOffset = y * width * 4;
+                for (let x = 0; x < width; x++) {
+                    const idx = rowOffset + (x * 4);
+                    const leftX = Math.max(0, x - offset);
+                    const leftIdx = rowOffset + (leftX * 4);
+                    data[idx] = srcCopy[leftIdx];
+
+                    const rightX = Math.min(width - 1, x + offset);
+                    const rightIdx = rowOffset + (rightX * 4);
+                    data[idx + 2] = srcCopy[rightIdx + 2];
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        /**
+         * 应用 CRT 复古扫描线与水平切片错位滑移混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyScanlinesAndDrift(ctx, width, height) {
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tCtx = tempCanvas.getContext("2d");
+            tCtx.drawImage(ctx.canvas, 0, 0);
+
+            const sliceCount = 8;
+            for (let i = 0; i < sliceCount; i++) {
+                const sliceH = Math.floor(Math.random() * 12) + 6;
+                const sliceY = Math.floor(Math.random() * (height - sliceH));
+                const driftX = (Math.random() - 0.5) * 40;
+                ctx.drawImage(tempCanvas, 0, sliceY, width, sliceH, driftX, sliceY, width, sliceH);
+            }
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+            for (let y = 0; y < height; y += 3) {
+                ctx.fillRect(0, y, width, 1);
+            }
+        }
+
+        /**
+         * 应用拼图碎纸机网格洗牌打乱混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number} [grid=4] - 横纵切片方块分割阶数。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyJigsawShuffle(ctx, width, height, grid = 4) {
+            const tempCanvas = document.createElement("canvas");
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tCtx = tempCanvas.getContext("2d");
+            tCtx.drawImage(ctx.canvas, 0, 0);
+
+            const total = grid * grid;
+            const order = Array.from({ length: total }, (_, i) => i);
+            for (let i = total - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = order[i];
+                order[i] = order[j];
+                order[j] = tmp;
+            }
+
+            const tileW = width / grid;
+            const tileH = height / grid;
+            ctx.clearRect(0, 0, width, height);
+
+            for (let i = 0; i < total; i++) {
+                const srcIdx = order[i];
+                const srcCol = srcIdx % grid;
+                const srcRow = Math.floor(srcIdx / grid);
+                const dstCol = i % grid;
+                const dstRow = Math.floor(i / grid);
+
+                const sx = srcCol * tileW;
+                const sy = srcRow * tileH;
+                const dx = dstCol * tileW;
+                const dy = dstRow * tileH;
+
+                ctx.drawImage(tempCanvas, sx, sy, tileW, tileH, dx, dy, tileW, tileH);
+            }
+
+            ctx.strokeStyle = "rgba(0, 0, 0, 0.3)";
+            ctx.lineWidth = 1;
+            for (let col = 1; col < grid; col++) {
+                ctx.beginPath();
+                ctx.moveTo(col * tileW, 0);
+                ctx.lineTo(col * tileW, height);
+                ctx.stroke();
+            }
+            for (let row = 1; row < grid; row++) {
+                ctx.beginPath();
+                ctx.moveTo(0, row * tileH);
+                ctx.lineTo(width, row * tileH);
+                ctx.stroke();
+            }
+        }
+
+        /**
+         * 应用极坐标黑洞漩涡扭曲混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number} [angle=2.8] - 核心旋转弧度系数。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applySwirlDistortion(ctx, width, height, angle = 2.8) {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+            const src = new Uint8ClampedArray(data);
+
+            const cx = width / 2;
+            const cy = height / 2;
+            const radius = Math.min(width, height) / 2;
+
+            for (let y = 0; y < height; y++) {
+                const dy = y - cy;
+                const rowOffset = y * width * 4;
+                for (let x = 0; x < width; x++) {
+                    const dx = x - cx;
+                    const r = Math.sqrt(dx * dx + dy * dy);
+                    if (r < radius) {
+                        const theta = Math.atan2(dy, dx);
+                        const newTheta = theta + angle * (1 - r / radius);
+                        const sx = Math.max(0, Math.min(width - 1, Math.round(cx + r * Math.cos(newTheta))));
+                        const sy = Math.max(0, Math.min(height - 1, Math.round(cy + r * Math.sin(newTheta))));
+
+                        const dstIdx = rowOffset + (x * 4);
+                        const srcIdx = (sy * width + sx) * 4;
+
+                        data[dstIdx] = src[srcIdx];
+                        data[dstIdx + 1] = src[srcIdx + 1];
+                        data[dstIdx + 2] = src[srcIdx + 2];
+                        data[dstIdx + 3] = src[srcIdx + 3];
+                    }
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        /**
+         * 应用波普艺术风格的半色调网点混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number} [dotSize=8] - 网点矩阵网格尺寸。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyHalftoneDots(ctx, width, height, dotSize = 8) {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = "#1e293b";
+
+            const radiusMax = (dotSize / 2) * 1.15;
+
+            for (let y = 0; y < height; y += dotSize) {
+                for (let x = 0; x < width; x += dotSize) {
+                    const sampleIdx = (Math.min(height - 1, y + Math.floor(dotSize / 2)) * width + Math.min(width - 1, x + Math.floor(dotSize / 2))) * 4;
+                    const brightness = (data[sampleIdx] * 0.299 + data[sampleIdx + 1] * 0.587 + data[sampleIdx + 2] * 0.114) / 255;
+                    const r = Math.max(0, (1 - brightness) * radiusMax);
+
+                    if (r > 0.5) {
+                        ctx.beginPath();
+                        ctx.arc(x + dotSize / 2, y + dotSize / 2, r, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        /**
+         * 应用黑客帝国终端极客 ASCII 字符画混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number} [charSize=10] - 字符单元网格大小。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyAsciiArt(ctx, width, height, charSize = 10) {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+            const chars = " .:-=+*#%@";
+
+            ctx.fillStyle = "#0a0f1d";
+            ctx.fillRect(0, 0, width, height);
+            ctx.font = `bold ${charSize - 1}px monospace`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "#10b981";
+
+            for (let y = 0; y < height; y += charSize) {
+                for (let x = 0; x < width; x += charSize) {
+                    const sampleIdx = (Math.min(height - 1, y + Math.floor(charSize / 2)) * width + Math.min(width - 1, x + Math.floor(charSize / 2))) * 4;
+                    const brightness = (data[sampleIdx] * 0.299 + data[sampleIdx + 1] * 0.587 + data[sampleIdx + 2] * 0.114) / 255;
+                    const charIdx = Math.min(chars.length - 1, Math.floor(brightness * chars.length));
+                    const ch = chars[charIdx];
+
+                    ctx.fillText(ch, x + charSize / 2, y + charSize / 2);
+                }
+            }
+        }
+
+        /**
+         * 应用 Sobel 梯度卷积赛博朋克霓虹线框混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applySobelEdge(ctx, width, height) {
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const data = imgData.data;
+            const gray = new Uint8Array(width * height);
+
+            for (let i = 0; i < gray.length; i++) {
+                const idx = i * 4;
+                gray[i] = Math.round(data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114);
+            }
+
+            const outputData = ctx.createImageData(width, height);
+            const out = outputData.data;
+
+            for (let y = 1; y < height - 1; y++) {
+                const rowPrev = (y - 1) * width;
+                const rowCurr = y * width;
+                const rowNext = (y + 1) * width;
+
+                for (let x = 1; x < width - 1; x++) {
+                    const gx = (gray[rowPrev + x + 1] + 2 * gray[rowCurr + x + 1] + gray[rowNext + x + 1]) -
+                               (gray[rowPrev + x - 1] + 2 * gray[rowCurr + x - 1] + gray[rowNext + x - 1]);
+                    const gy = (gray[rowNext + x - 1] + 2 * gray[rowNext + x] + gray[rowNext + x + 1]) -
+                               (gray[rowPrev + x - 1] + 2 * gray[rowPrev + x] + gray[rowPrev + x + 1]);
+
+                    const mag = Math.sqrt(gx * gx + gy * gy);
+                    const idx = (rowCurr + x) * 4;
+
+                    if (mag > 50) {
+                        out[idx] = 34;
+                        out[idx + 1] = 211;
+                        out[idx + 2] = 238;
+                        out[idx + 3] = 255;
+                    } else {
+                        out[idx] = 15;
+                        out[idx + 1] = 23;
+                        out[idx + 2] = 42;
+                        out[idx + 3] = 255;
+                    }
+                }
+            }
+            ctx.putImageData(outputData, 0, 0);
+        }
+
+        /**
+         * 在画面中心绘制斜向黄黑警示安全带混淆特效。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyCautionTape(ctx, width, height) {
+            ctx.save();
+            ctx.translate(width / 2, height / 2);
+            ctx.rotate(-15 * Math.PI / 180);
+
+            const tapeW = width * 1.4;
+            const tapeH = Math.max(38, Math.min(64, Math.round(height * 0.18)));
+
+            ctx.fillStyle = "#f59e0b";
+            ctx.fillRect(-tapeW / 2, -tapeH / 2, tapeW, tapeH);
+
+            ctx.fillStyle = "#18181b";
+            const stripeW = 24;
+            for (let x = -tapeW / 2; x < tapeW / 2; x += stripeW * 2) {
+                ctx.beginPath();
+                ctx.moveTo(x, -tapeH / 2);
+                ctx.lineTo(x + stripeW, -tapeH / 2);
+                ctx.lineTo(x + stripeW - 14, tapeH / 2);
+                ctx.lineTo(x - 14, tapeH / 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            const labelText = "⚠ CAUTION / CONFIDENTIAL ⚠";
+            ctx.font = `bold ${Math.round(tapeH * 0.42)}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            const metrics = ctx.measureText(labelText);
+            const pillW = metrics.width + 24;
+            const pillH = tapeH * 0.65;
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+            ctx.fillRect(-pillW / 2, -pillH / 2, pillW, pillH);
+
+            ctx.fillStyle = "#fbbf24";
+            ctx.fillText(labelText, 0, 0);
+
+            ctx.restore();
+        }
+
+        /**
          * 对目标 Canvas 上下文中的封面画面应用模糊滤镜、混淆特效与自定义文字水印。
          *
          * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
@@ -1481,58 +1834,100 @@
                 ctx.filter = "none";
             }
 
-            // 2. 混淆特效
-            if (coverEffectsConfig.confusion === 'pixelate') {
-                const blockSize = Math.max(4, coverEffectsConfig.pixelSize || 16);
-                const smallW = Math.max(1, Math.floor(width / blockSize));
-                const smallH = Math.max(1, Math.floor(height / blockSize));
+            // 2. 混淆特效处理流水线
+            switch (coverEffectsConfig.confusion) {
+                case 'pixelate': {
+                    const blockSize = Math.max(4, coverEffectsConfig.pixelSize || 16);
+                    const smallW = Math.max(1, Math.floor(width / blockSize));
+                    const smallH = Math.max(1, Math.floor(height / blockSize));
+                    const smallCanvas = document.createElement("canvas");
+                    smallCanvas.width = smallW;
+                    smallCanvas.height = smallH;
+                    const sCtx = smallCanvas.getContext("2d");
+                    sCtx.imageSmoothingEnabled = false;
+                    sCtx.drawImage(ctx.canvas, 0, 0, smallW, smallH);
 
-                const smallCanvas = document.createElement("canvas");
-                smallCanvas.width = smallW;
-                smallCanvas.height = smallH;
-                const sCtx = smallCanvas.getContext("2d");
-                sCtx.imageSmoothingEnabled = false;
-                sCtx.drawImage(ctx.canvas, 0, 0, smallW, smallH);
-
-                ctx.imageSmoothingEnabled = false;
-                ctx.clearRect(0, 0, width, height);
-                ctx.drawImage(smallCanvas, 0, 0, width, height);
-                ctx.imageSmoothingEnabled = true;
-            } else if (coverEffectsConfig.confusion === 'invert') {
-                const tempCanvas = document.createElement("canvas");
-                tempCanvas.width = width;
-                tempCanvas.height = height;
-                const tempCtx = tempCanvas.getContext("2d");
-                tempCtx.drawImage(ctx.canvas, 0, 0);
-
-                ctx.clearRect(0, 0, width, height);
-                ctx.filter = "invert(100%)";
-                ctx.drawImage(tempCanvas, 0, 0);
-                ctx.filter = "none";
-            } else if (coverEffectsConfig.confusion === 'grayscale') {
-                const tempCanvas = document.createElement("canvas");
-                tempCanvas.width = width;
-                tempCanvas.height = height;
-                const tempCtx = tempCanvas.getContext("2d");
-                tempCtx.drawImage(ctx.canvas, 0, 0);
-
-                ctx.clearRect(0, 0, width, height);
-                ctx.filter = "grayscale(100%)";
-                ctx.drawImage(tempCanvas, 0, 0);
-                ctx.filter = "none";
-            } else if (coverEffectsConfig.confusion === 'noise') {
-                const imgData = ctx.getImageData(0, 0, width, height);
-                const data = imgData.data;
-                const len = data.length;
-                for (let i = 0; i < len; i += 4) {
-                    if (Math.random() < 0.28) {
-                        const noise = (Math.random() - 0.5) * 160;
-                        data[i] = Math.min(255, Math.max(0, data[i] + noise));
-                        data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
-                        data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
-                    }
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.drawImage(smallCanvas, 0, 0, width, height);
+                    ctx.imageSmoothingEnabled = true;
+                    break;
                 }
-                ctx.putImageData(imgData, 0, 0);
+                case 'rgb_split': {
+                    applyRgbSplit(ctx, width, height, 14);
+                    break;
+                }
+                case 'scanline': {
+                    applyScanlinesAndDrift(ctx, width, height);
+                    break;
+                }
+                case 'jigsaw': {
+                    applyJigsawShuffle(ctx, width, height, 4);
+                    break;
+                }
+                case 'swirl': {
+                    applySwirlDistortion(ctx, width, height, 2.8);
+                    break;
+                }
+                case 'halftone': {
+                    applyHalftoneDots(ctx, width, height, 8);
+                    break;
+                }
+                case 'ascii': {
+                    applyAsciiArt(ctx, width, height, 10);
+                    break;
+                }
+                case 'edge': {
+                    applySobelEdge(ctx, width, height);
+                    break;
+                }
+                case 'caution': {
+                    applyCautionTape(ctx, width, height);
+                    break;
+                }
+                case 'invert': {
+                    const tempCanvas = document.createElement("canvas");
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    const tempCtx = tempCanvas.getContext("2d");
+                    tempCtx.drawImage(ctx.canvas, 0, 0);
+
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.filter = "invert(100%)";
+                    ctx.drawImage(tempCanvas, 0, 0);
+                    ctx.filter = "none";
+                    break;
+                }
+                case 'grayscale': {
+                    const tempCanvas = document.createElement("canvas");
+                    tempCanvas.width = width;
+                    tempCanvas.height = height;
+                    const tempCtx = tempCanvas.getContext("2d");
+                    tempCtx.drawImage(ctx.canvas, 0, 0);
+
+                    ctx.clearRect(0, 0, width, height);
+                    ctx.filter = "grayscale(100%)";
+                    ctx.drawImage(tempCanvas, 0, 0);
+                    ctx.filter = "none";
+                    break;
+                }
+                case 'noise': {
+                    const imgData = ctx.getImageData(0, 0, width, height);
+                    const data = imgData.data;
+                    const len = data.length;
+                    for (let i = 0; i < len; i += 4) {
+                        if (Math.random() < 0.28) {
+                            const noise = (Math.random() - 0.5) * 160;
+                            data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                            data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+                            data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+                        }
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    break;
+                }
+                default:
+                    break;
             }
 
             // 3. 自定义文字水印覆盖
@@ -3445,7 +3840,20 @@
 
                 const effectsTags = [];
                 if (coverEffectsConfig.confusion !== 'none') {
-                    const cMap = { pixelate: '马赛克', invert: '反色', grayscale: '灰度', noise: '噪点' };
+                    const cMap = {
+                        pixelate: '马赛克',
+                        invert: '反色',
+                        grayscale: '灰度',
+                        noise: '噪点',
+                        rgb_split: 'RGB色散',
+                        scanline: '扫描线',
+                        jigsaw: '拼图打乱',
+                        swirl: '黑洞漩涡',
+                        halftone: '半色调网点',
+                        ascii: 'ASCII字符',
+                        edge: '霓虹线框',
+                        caution: '警戒带'
+                    };
                     effectsTags.push(cMap[coverEffectsConfig.confusion] || coverEffectsConfig.confusion);
                 }
                 if (coverEffectsConfig.blurRadius > 0) {
