@@ -987,7 +987,7 @@
             justify-content: center;
             border: 1px solid var(--border-color);
         }
-        .trimmer-video-wrapper video {
+        .trimmer-video-wrapper video, .trimmer-video-wrapper canvas {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
@@ -1586,16 +1586,17 @@
         </div>
     </div>
 
-    <!-- 视频时段可视化双端拖拽裁剪模态对话框 -->
+    <!-- 动态媒体（视频/动图）时段可视化双端拖拽裁剪模态对话框 -->
     <div id="modal-video-trimmer" class="modal-overlay">
         <div class="modal-dialog">
             <div class="modal-header">
-                <h3>自定义视频隐藏时段与帧数转换</h3>
+                <h3 id="trimmer-modal-title">自定义视频隐藏时段与帧数转换</h3>
                 <button id="btn-trimmer-close" class="modal-close" type="button">×</button>
             </div>
             <div class="modal-body">
                 <div class="trimmer-video-wrapper">
                     <video id="trimmer-video" playsinline muted></video>
+                    <canvas id="trimmer-anim-canvas" style="display: none;"></canvas>
                 </div>
                 <div class="timeline-box">
                     <div id="timeline-track" class="timeline-track-wrapper">
@@ -1616,7 +1617,7 @@
                     </div>
                     <div class="trimmer-control-row">
                         <div class="fps-mode-selector">
-                            <label for="trimmer-mode-select">帧率转换模式：</label>
+                            <label id="trimmer-mode-label" for="trimmer-mode-select">帧率转换模式：</label>
                             <select id="trimmer-mode-select">
                                 <option value="native" selected>使用原视频帧率 (原汁原味)</option>
                                 <option value="preset_60">流畅极速 (60 FPS)</option>
@@ -1749,22 +1750,28 @@
         };
 
         /**
-         * 视频时段裁剪器当前交互状态。
+         * 动态媒体（视频 / 动图）时段裁剪器当前交互状态。
          */
         const trimmerState = {
+            mediaCategory: 'video', // 'video' | 'animated_image'
             file: null,
+            detected: null,
             objectUrl: null,
             videoDuration: 0,
             nativeFps: 30,
             startTime: 0,
             endTime: 5,
-            mode: 'native', // 'native' | 'preset_60' | 'preset_30' | 'preset_24' | 'preset_15' | 'preset_10' | 'custom_fps' | 'fixed_count'
+            mode: 'native', // 视频模式或动图模式
             effectiveFps: 30,
             fixedFrameCount: 30,
             activeDrag: null,
             dragStartX: 0,
             initialStart: 0,
-            initialEnd: 0
+            initialEnd: 0,
+            // 动图专属帧缓存与定时器
+            animFrames: [],
+            animCurrentIdx: 0,
+            animPlaybackTimer: null
         };
 
         /**
@@ -3513,82 +3520,270 @@
         }
 
         /**
-         * 打开视频裁剪对话框并初始化时间轴、原生帧率检测与监看画面。
+         * 根据时间（秒）检索动图帧序列中对应的帧索引。
          *
-         * @param {File} file - 待裁剪的视频文件对象。
-         * @param {Object} [detected] - 经二进制魔数识别出的文件类型元数据对象。
-         * @returns {void}
+         * @param {number} timeSec - 目标秒数。
+         * @returns {number} 对应的帧索引（0-based）。
          * @see Callers:
-         *  - `processHiddenFiles`: 当检测到视频文件时呼出。
+         *  - `renderAnimTrimmerFrameAtTime`
+         *  - `startAnimTrimmerPreview`
+         *  - `confirmMediaTrimmer`
          */
-        function openVideoTrimmer(file, detected) {
-            trimmerState.file = file;
-            if (trimmerState.objectUrl) {
-                URL.revokeObjectURL(trimmerState.objectUrl);
+        function getAnimFrameIndexAtTime(timeSec) {
+            if (!trimmerState.animFrames || trimmerState.animFrames.length === 0) return 0;
+            const targetMs = Math.max(0, timeSec * 1000);
+            let accumulatedMs = 0;
+            for (let i = 0; i < trimmerState.animFrames.length; i++) {
+                accumulatedMs += trimmerState.animFrames[i].delayMs;
+                if (targetMs <= accumulatedMs || i === trimmerState.animFrames.length - 1) {
+                    return i;
+                }
             }
-            const videoMime = (detected && detected.mime) ? detected.mime : (file.type || "video/mp4");
-            const cleanBlob = (file.type === videoMime) ? file : new Blob([file], { type: videoMime });
-            trimmerState.objectUrl = URL.createObjectURL(cleanBlob);
-
-            const video = document.getElementById("trimmer-video");
-            video.src = trimmerState.objectUrl;
-
-            setLoadingState(true, "正在分析视频媒体与原生帧率...");
-
-            video.onloadedmetadata = async () => {
-                const dur = video.duration;
-                if (isNaN(dur) || dur <= 0) {
-                    setLoadingState(false);
-                    showError("无法读取该视频的时长。");
-                    return;
-                }
-
-                // 探测原视频帧率
-                const detectedFps = await detectVideoNativeFrameRate(file, video);
-                trimmerState.nativeFps = detectedFps;
-                trimmerState.videoDuration = dur;
-                trimmerState.startTime = 0;
-                trimmerState.endTime = dur; // 默认全选整个视频时长
-
-                // 更新原视频信息标签
-                const metaEl = document.getElementById("trimmer-source-meta");
-                metaEl.textContent = `原视频: ${video.videoWidth} × ${video.videoHeight} @ ${detectedFps} FPS (总长: ${formatSeconds(dur)})`;
-
-                // 同步下拉框文案
-                const nativeOpt = document.querySelector("#trimmer-mode-select option[value='native']");
-                if (nativeOpt) {
-                    nativeOpt.textContent = `使用原视频帧率 (${detectedFps} FPS)`;
-                }
-
-                setLoadingState(false);
-                updateTrimmerDisplay();
-                document.getElementById("modal-video-trimmer").style.display = "flex";
-                video.currentTime = trimmerState.startTime;
-            };
-
-            video.onerror = () => {
-                setLoadingState(false);
-                showError("无法载入视频预览，可能格式不受支持。");
-            };
+            return 0;
         }
 
         /**
-         * 关闭视频裁剪对话框并释放预览媒体引用。
+         * 将指定索引的动图帧绘制到裁剪器预览 Canvas 画布中。
+         *
+         * @param {number} frameIndex - 动图帧序列索引。
+         * @returns {void}
+         * @see Callers:
+         *  - `syncPreviewToCurrentTime`
+         *  - `startAnimTrimmerPreview`
+         *  - `openMediaTrimmer`
+         */
+        function renderAnimTrimmerFrame(frameIndex) {
+            const canvas = document.getElementById("trimmer-anim-canvas");
+            if (!canvas || !trimmerState.animFrames || trimmerState.animFrames.length === 0) return;
+            const idx = Math.max(0, Math.min(frameIndex, trimmerState.animFrames.length - 1));
+            trimmerState.animCurrentIdx = idx;
+            const frame = trimmerState.animFrames[idx];
+            if (!frame || !frame.img) return;
+
+            if (canvas.width !== frame.width || canvas.height !== frame.height) {
+                canvas.width = frame.width;
+                canvas.height = frame.height;
+            }
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(frame.img, 0, 0);
+        }
+
+        /**
+         * 停止裁剪器当前正在进行的试看播放（视频暂停与动图播放定时器清理）。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `closeVideoTrimmer`
+         *  - `openMediaTrimmer`
+         *  - `startAnimTrimmerPreview`
+         *  - `confirmMediaTrimmer`
+         */
+        function stopTrimmerPlayback() {
+            const video = document.getElementById("trimmer-video");
+            if (video && !video.paused) {
+                video.pause();
+            }
+            if (trimmerState.animPlaybackTimer) {
+                clearTimeout(trimmerState.animPlaybackTimer);
+                trimmerState.animPlaybackTimer = null;
+            }
+        }
+
+        /**
+         * 启动动图在选定时区内的循环试看播放。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `setupTimelineTrimmerEvents.btnTrimmerPreview.onclick`
+         */
+        function startAnimTrimmerPreview() {
+            stopTrimmerPlayback();
+            if (!trimmerState.animFrames || trimmerState.animFrames.length === 0) return;
+
+            const startIdx = getAnimFrameIndexAtTime(trimmerState.startTime);
+            const endIdx = getAnimFrameIndexAtTime(trimmerState.endTime);
+            let current = startIdx;
+
+            function playNext() {
+                renderAnimTrimmerFrame(current);
+                const frameDelay = (trimmerState.animFrames[current] && trimmerState.animFrames[current].delayMs) ? trimmerState.animFrames[current].delayMs : 100;
+                current++;
+                if (current > endIdx || current >= trimmerState.animFrames.length) {
+                    current = startIdx;
+                }
+                trimmerState.animPlaybackTimer = setTimeout(playNext, Math.max(30, frameDelay));
+            }
+
+            playNext();
+        }
+
+        /**
+         * 同步当前时间轴指针位置至视频画面或动图对应帧。
+         *
+         * @param {number} timeSec - 当前选区秒数。
+         * @returns {void}
+         * @see Callers:
+         *  - `setupTimelineTrimmerEvents.onPointerMove`
+         *  - `setupTimelineTrimmerEvents.btnSelectAll.onclick`
+         */
+        function syncPreviewToCurrentTime(timeSec) {
+            if (trimmerState.mediaCategory === 'video') {
+                const video = document.getElementById("trimmer-video");
+                if (video) video.currentTime = timeSec;
+            } else if (trimmerState.mediaCategory === 'animated_image') {
+                const idx = getAnimFrameIndexAtTime(timeSec);
+                renderAnimTrimmerFrame(idx);
+            }
+        }
+
+        /**
+         * 打开多媒体（视频或动图）裁剪对话框并初始化时间轴、媒体预览与抽帧计算。
+         *
+         * @param {File} file - 上传的动态多媒体文件。
+         * @param {Object} detected - 经二进制魔数识别出的文件类型元数据对象。
+         * @returns {Promise<void>}
+         * @see Callers:
+         *  - `processHiddenFiles`: 当检测到视频或动图文件时呼出。
+         */
+        async function openMediaTrimmer(file, detected) {
+            stopTrimmerPlayback();
+            trimmerState.file = file;
+            trimmerState.detected = detected;
+            trimmerState.mediaCategory = detected.category;
+
+            const titleEl = document.getElementById("trimmer-modal-title");
+            const video = document.getElementById("trimmer-video");
+            const canvas = document.getElementById("trimmer-anim-canvas");
+            const modeSelect = document.getElementById("trimmer-mode-select");
+            const modeLabel = document.getElementById("trimmer-mode-label");
+            const metaEl = document.getElementById("trimmer-source-meta");
+
+            if (detected.category === 'video') {
+                titleEl.textContent = `自定义视频隐藏时段与帧数转换 [${detected.formatLabel}]`;
+                video.style.display = "block";
+                canvas.style.display = "none";
+                modeLabel.textContent = "帧率转换模式：";
+
+                modeSelect.innerHTML = `
+                    <option value="native" selected>使用原视频帧率 (原汁原味)</option>
+                    <option value="preset_60">流畅极速 (60 FPS)</option>
+                    <option value="preset_30">标准电影 (30 FPS)</option>
+                    <option value="preset_24">影院帧率 (24 FPS)</option>
+                    <option value="preset_15">平滑紧凑 (15 FPS)</option>
+                    <option value="preset_10">均衡节能 (10 FPS)</option>
+                    <option value="custom_fps">自定义任意 FPS</option>
+                    <option value="fixed_count">截取固定总帧数</option>
+                `;
+
+                if (trimmerState.objectUrl) {
+                    URL.revokeObjectURL(trimmerState.objectUrl);
+                }
+                const videoMime = (detected && detected.mime) ? detected.mime : (file.type || "video/mp4");
+                const cleanBlob = (file.type === videoMime) ? file : new Blob([file], { type: videoMime });
+                trimmerState.objectUrl = URL.createObjectURL(cleanBlob);
+                video.src = trimmerState.objectUrl;
+
+                setLoadingState(true, `正在分析 ${detected.formatLabel} 视频媒体与原生帧率...`);
+
+                video.onloadedmetadata = async () => {
+                    const dur = video.duration;
+                    if (isNaN(dur) || dur <= 0) {
+                        setLoadingState(false);
+                        showError("无法读取该视频的时长。");
+                        return;
+                    }
+
+                    // 探测原视频帧率
+                    const detectedFps = await detectVideoNativeFrameRate(file, video);
+                    trimmerState.nativeFps = detectedFps;
+                    trimmerState.videoDuration = dur;
+                    trimmerState.startTime = 0;
+                    trimmerState.endTime = dur;
+
+                    metaEl.textContent = `原视频: ${video.videoWidth} × ${video.videoHeight} @ ${detectedFps} FPS (总长: ${formatSeconds(dur)})`;
+                    const nativeOpt = modeSelect.querySelector("option[value='native']");
+                    if (nativeOpt) {
+                        nativeOpt.textContent = `使用原视频帧率 (${detectedFps} FPS)`;
+                    }
+
+                    setLoadingState(false);
+                    updateTrimmerDisplay();
+                    document.getElementById("modal-video-trimmer").style.display = "flex";
+                    video.currentTime = trimmerState.startTime;
+                };
+
+                video.onerror = () => {
+                    setLoadingState(false);
+                    showError("无法载入视频预览，可能格式不受支持。");
+                };
+            } else if (detected.category === 'animated_image') {
+                titleEl.textContent = `自定义动图隐藏时段与帧抽取 [${detected.formatLabel}]`;
+                video.style.display = "none";
+                canvas.style.display = "block";
+                modeLabel.textContent = "动图抽取模式：";
+
+                modeSelect.innerHTML = `
+                    <option value="anim_all" selected>保留选区全部帧 (原汁原味)</option>
+                    <option value="anim_step_2">隔帧采样 (每隔 1 帧取 1 帧，体积减半)</option>
+                    <option value="anim_step_3">稀疏采样 (每隔 2 帧取 1 帧，体积大幅缩小)</option>
+                    <option value="fixed_count">截取固定总帧数</option>
+                `;
+
+                setLoadingState(true, `正在解析动图 ${file.name} [${detected.formatLabel}]...`);
+                try {
+                    const frames = await decodeAnimatedImage(file, detected.mime, detected.formatLabel);
+                    if (!frames || frames.length === 0) {
+                        throw new Error("动图中未解析出可用图像帧。");
+                    }
+                    trimmerState.animFrames = frames;
+                    let totalMs = 0;
+                    frames.forEach(f => totalMs += f.delayMs);
+                    const durSec = Math.max(0.1, totalMs / 1000);
+                    const avgFps = Math.max(1, Math.round(frames.length / durSec));
+
+                    trimmerState.videoDuration = durSec;
+                    trimmerState.nativeFps = avgFps;
+                    trimmerState.startTime = 0;
+                    trimmerState.endTime = durSec;
+
+                    metaEl.textContent = `动图: ${frames[0].width} × ${frames[0].height} @ ${frames.length} 帧 (总长: ${formatSeconds(durSec)}, 约 ${avgFps} FPS)`;
+
+                    renderAnimTrimmerFrame(0);
+                    updateTrimmerDisplay();
+                    document.getElementById("modal-video-trimmer").style.display = "flex";
+                } catch (err) {
+                    showError(`动图解析失败: ${err.message}`);
+                } finally {
+                    setLoadingState(false);
+                }
+            }
+        }
+
+        /**
+         * 兼容性多媒体裁剪器入口别名。
+         */
+        const openVideoTrimmer = openMediaTrimmer;
+
+        /**
+         * 关闭多媒体裁剪对话框并释放预览媒体引用。
          *
          * @returns {void}
          * @see Callers:
          *  - `btnTrimmerClose.onclick`
          *  - `btnTrimmerCancel.onclick`
-         *  - `confirmVideoTrimmer`
+         *  - `confirmMediaTrimmer`
          */
         function closeVideoTrimmer() {
+            stopTrimmerPlayback();
             const video = document.getElementById("trimmer-video");
-            video.pause();
+            if (video) video.pause();
             if (trimmerState.objectUrl) {
                 URL.revokeObjectURL(trimmerState.objectUrl);
                 trimmerState.objectUrl = null;
             }
             trimmerState.file = null;
+            trimmerState.animFrames = [];
             document.getElementById("modal-video-trimmer").style.display = "none";
         }
 
@@ -3597,7 +3792,7 @@
          *
          * @returns {void}
          * @see Callers:
-         *  - `openVideoTrimmer`
+         *  - `openMediaTrimmer`
          *  - `setupTimelineTrimmerEvents`
          */
         function updateTrimmerDisplay() {
@@ -3628,26 +3823,46 @@
             let estimatedFrames = 0;
             let frameDelayMs = 100;
 
-            if (mode === 'native') {
-                trimmerState.effectiveFps = trimmerState.nativeFps;
-                estimatedFrames = Math.max(1, Math.floor(diff * trimmerState.nativeFps));
-                frameDelayMs = Math.max(20, Math.round(1000 / trimmerState.nativeFps));
-            } else if (mode.startsWith('preset_')) {
-                const fpsVal = parseInt(mode.replace('preset_', ''), 10);
-                trimmerState.effectiveFps = fpsVal;
-                estimatedFrames = Math.max(1, Math.floor(diff * fpsVal));
-                frameDelayMs = Math.max(20, Math.round(1000 / fpsVal));
-            } else if (mode === 'custom_fps') {
-                const customFps = Math.max(1, parseFloat(document.getElementById("input-custom-fps").value) || 20);
-                trimmerState.effectiveFps = customFps;
-                estimatedFrames = Math.max(1, Math.floor(diff * customFps));
-                frameDelayMs = Math.max(20, Math.round(1000 / customFps));
-            } else if (mode === 'fixed_count') {
-                const countVal = Math.max(2, parseInt(document.getElementById("input-fixed-count").value, 10) || 30);
-                trimmerState.fixedFrameCount = countVal;
-                estimatedFrames = countVal;
-                const calcFps = countVal / diff;
+            if (trimmerState.mediaCategory === 'animated_image') {
+                const startIdx = getAnimFrameIndexAtTime(trimmerState.startTime);
+                const endIdx = getAnimFrameIndexAtTime(trimmerState.endTime);
+                const rawCount = Math.max(1, endIdx - startIdx + 1);
+
+                if (mode === 'anim_all') {
+                    estimatedFrames = rawCount;
+                } else if (mode === 'anim_step_2') {
+                    estimatedFrames = Math.max(1, Math.ceil(rawCount / 2));
+                } else if (mode === 'anim_step_3') {
+                    estimatedFrames = Math.max(1, Math.ceil(rawCount / 3));
+                } else if (mode === 'fixed_count') {
+                    const countVal = Math.max(2, parseInt(document.getElementById("input-fixed-count").value, 10) || 30);
+                    trimmerState.fixedFrameCount = countVal;
+                    estimatedFrames = Math.min(rawCount, countVal);
+                }
+                const calcFps = estimatedFrames / diff;
                 frameDelayMs = Math.max(20, Math.round(1000 / calcFps));
+            } else {
+                if (mode === 'native') {
+                    trimmerState.effectiveFps = trimmerState.nativeFps;
+                    estimatedFrames = Math.max(1, Math.floor(diff * trimmerState.nativeFps));
+                    frameDelayMs = Math.max(20, Math.round(1000 / trimmerState.nativeFps));
+                } else if (mode.startsWith('preset_')) {
+                    const fpsVal = parseInt(mode.replace('preset_', ''), 10);
+                    trimmerState.effectiveFps = fpsVal;
+                    estimatedFrames = Math.max(1, Math.floor(diff * fpsVal));
+                    frameDelayMs = Math.max(20, Math.round(1000 / fpsVal));
+                } else if (mode === 'custom_fps') {
+                    const customFps = Math.max(1, parseFloat(document.getElementById("input-custom-fps").value) || 20);
+                    trimmerState.effectiveFps = customFps;
+                    estimatedFrames = Math.max(1, Math.floor(diff * customFps));
+                    frameDelayMs = Math.max(20, Math.round(1000 / customFps));
+                } else if (mode === 'fixed_count') {
+                    const countVal = Math.max(2, parseInt(document.getElementById("input-fixed-count").value, 10) || 30);
+                    trimmerState.fixedFrameCount = countVal;
+                    estimatedFrames = countVal;
+                    const calcFps = countVal / diff;
+                    frameDelayMs = Math.max(20, Math.round(1000 / calcFps));
+                }
             }
 
             document.getElementById("trimmer-calc-summary").textContent = `预计 ${estimatedFrames} 帧 (${frameDelayMs}ms/帧)`;
@@ -3669,18 +3884,21 @@
 
             handleStart.addEventListener("pointerdown", (e) => {
                 e.stopPropagation();
+                stopTrimmerPlayback();
                 trimmerState.activeDrag = 'start';
                 handleStart.setPointerCapture(e.pointerId);
             });
 
             handleEnd.addEventListener("pointerdown", (e) => {
                 e.stopPropagation();
+                stopTrimmerPlayback();
                 trimmerState.activeDrag = 'end';
                 handleEnd.setPointerCapture(e.pointerId);
             });
 
             selection.addEventListener("pointerdown", (e) => {
                 if (e.target === handleStart || e.target === handleEnd) return;
+                stopTrimmerPlayback();
                 trimmerState.activeDrag = 'range';
                 trimmerState.dragStartX = e.clientX;
                 trimmerState.initialStart = trimmerState.startTime;
@@ -3697,13 +3915,13 @@
                     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
                     const newStart = ratio * totalDur;
                     trimmerState.startTime = Math.max(0, Math.min(newStart, trimmerState.endTime - 0.1));
-                    video.currentTime = trimmerState.startTime;
+                    syncPreviewToCurrentTime(trimmerState.startTime);
                     updateTrimmerDisplay();
                 } else if (trimmerState.activeDrag === 'end') {
                     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
                     const newEnd = ratio * totalDur;
                     trimmerState.endTime = Math.min(totalDur, Math.max(newEnd, trimmerState.startTime + 0.1));
-                    video.currentTime = trimmerState.endTime;
+                    syncPreviewToCurrentTime(trimmerState.endTime);
                     updateTrimmerDisplay();
                 } else if (trimmerState.activeDrag === 'range') {
                     const deltaPixels = e.clientX - trimmerState.dragStartX;
@@ -3723,7 +3941,7 @@
 
                     trimmerState.startTime = newStart;
                     trimmerState.endTime = newEnd;
-                    video.currentTime = trimmerState.startTime;
+                    syncPreviewToCurrentTime(trimmerState.startTime);
                     updateTrimmerDisplay();
                 }
             };
@@ -3741,14 +3959,13 @@
             window.addEventListener("pointerup", onPointerUp);
 
             video.addEventListener("timeupdate", () => {
-                if (!video.paused && video.currentTime >= trimmerState.endTime) {
+                if (trimmerState.mediaCategory === 'video' && !video.paused && video.currentTime >= trimmerState.endTime) {
                     video.pause();
                     video.currentTime = trimmerState.startTime;
                 }
             });
 
-            // 试看按钮
-            // 全选整个视频时段
+            // 全选整个媒体时段
             const btnSelectAll = document.getElementById("btn-trimmer-select-all");
             if (btnSelectAll) {
                 btnSelectAll.addEventListener("click", () => {
@@ -3756,14 +3973,19 @@
                         trimmerState.startTime = 0;
                         trimmerState.endTime = trimmerState.videoDuration;
                         updateTrimmerDisplay();
-                        video.currentTime = 0;
+                        syncPreviewToCurrentTime(0);
                     }
                 });
             }
 
+            // 试看按钮
             document.getElementById("btn-trimmer-preview").addEventListener("click", () => {
-                video.currentTime = trimmerState.startTime;
-                video.play();
+                if (trimmerState.mediaCategory === 'video') {
+                    video.currentTime = trimmerState.startTime;
+                    video.play();
+                } else if (trimmerState.mediaCategory === 'animated_image') {
+                    startAnimTrimmerPreview();
+                }
             });
 
             // 取消与关闭
@@ -3771,7 +3993,7 @@
             document.getElementById("btn-trimmer-cancel").addEventListener("click", closeVideoTrimmer);
 
             // 确认截取
-            document.getElementById("btn-trimmer-confirm").addEventListener("click", confirmVideoTrimmer);
+            document.getElementById("btn-trimmer-confirm").addEventListener("click", confirmMediaTrimmer);
 
             // 模式选择与输入变动监听
             document.getElementById("trimmer-mode-select").addEventListener("change", updateTrimmerDisplay);
@@ -3780,35 +4002,91 @@
         }
 
         /**
-         * 确认视频裁剪时段并按选定的帧率或总帧数调用抽帧流水线。
+         * 确认多媒体（视频或动图）裁剪时段并按选定采样模式将帧提取追加至隐藏序列。
          *
          * @returns {Promise<void>}
          * @see Callers:
          *  - `btnTrimmerConfirm.onclick`
          */
-        async function confirmVideoTrimmer() {
+        async function confirmMediaTrimmer() {
+            stopTrimmerPlayback();
             const file = trimmerState.file;
             const start = trimmerState.startTime;
             const duration = trimmerState.endTime - trimmerState.startTime;
             const mode = trimmerState.mode;
-
-            const isFixedCount = (mode === 'fixed_count');
-            const targetParam = isFixedCount ? trimmerState.fixedFrameCount : trimmerState.effectiveFps;
+            const category = trimmerState.mediaCategory;
+            const animFramesCache = trimmerState.animFrames ? [...trimmerState.animFrames] : [];
+            const fixedCount = trimmerState.fixedFrameCount;
+            const effectiveFps = trimmerState.effectiveFps;
 
             closeVideoTrimmer();
 
-            try {
-                setLoadingState(true, `正在按设定帧率抽取视频 ${file.name}...`);
-                const extracted = await extractFramesFromVideo(file, start, duration, targetParam, isFixedCount);
-                hiddenFrames.push(...extracted);
-                renderHiddenFrameList();
-                checkReadyState();
-            } catch (err) {
-                showError("视频时段抽帧失败: " + err.message);
-            } finally {
-                setLoadingState(false);
+            if (category === 'animated_image') {
+                try {
+                    setLoadingState(true, `正在按选区提取动图 ${file ? file.name : ''} 帧...`);
+                    const startIdx = getAnimFrameIndexAtTime(start);
+                    const endIdx = getAnimFrameIndexAtTime(start + duration);
+                    const sliced = animFramesCache.slice(startIdx, endIdx + 1);
+
+                    let chosenFrames = [];
+                    if (mode === 'anim_all') {
+                        chosenFrames = sliced;
+                    } else if (mode === 'anim_step_2') {
+                        chosenFrames = sliced.filter((_, idx) => idx % 2 === 0);
+                    } else if (mode === 'anim_step_3') {
+                        chosenFrames = sliced.filter((_, idx) => idx % 3 === 0);
+                    } else if (mode === 'fixed_count') {
+                        const targetCount = trimmerState.fixedFrameCount || 30;
+                        if (sliced.length <= targetCount) {
+                            chosenFrames = sliced;
+                        } else {
+                            const step = (sliced.length - 1) / (targetCount - 1);
+                            for (let i = 0; i < targetCount; i++) {
+                                const pickIdx = Math.round(i * step);
+                                chosenFrames.push(sliced[pickIdx]);
+                            }
+                        }
+                    } else {
+                        chosenFrames = sliced;
+                    }
+
+                    if (chosenFrames.length === 0 && sliced.length > 0) {
+                        chosenFrames = [sliced[0]];
+                    }
+
+                    hiddenFrames.push(...chosenFrames);
+                    renderHiddenFrameList();
+                    checkReadyState();
+                    showToast(`已成功从动图抽取 ${chosenFrames.length} 帧并追加至隐藏帧`, "success");
+                } catch (err) {
+                    showError(`动图帧提取失败: ${err.message}`);
+                } finally {
+                    setLoadingState(false);
+                }
+            } else {
+                // 视频抽帧逻辑
+                const isFixedCount = (mode === 'fixed_count');
+                const targetParam = isFixedCount ? fixedCount : effectiveFps;
+
+                try {
+                    setLoadingState(true, `正在按设定帧率抽取视频 ${file.name}...`);
+                    const extracted = await extractFramesFromVideo(file, start, duration, targetParam, isFixedCount);
+                    hiddenFrames.push(...extracted);
+                    renderHiddenFrameList();
+                    checkReadyState();
+                    showToast(`已成功从视频抽取 ${extracted.length} 帧并追加至隐藏帧`, "success");
+                } catch (err) {
+                    showError("视频时段抽帧失败: " + err.message);
+                } finally {
+                    setLoadingState(false);
+                }
             }
         }
+
+        /**
+         * 兼容性视频裁剪确认别名。
+         */
+        const confirmVideoTrimmer = confirmMediaTrimmer;
 
         /**
          * 处理用户上传的隐藏文件列表（分流静态图片、动态图片与视频）。
@@ -3827,16 +4105,10 @@
                 try {
                     const detected = await detectMediaFileType(file);
 
-                    if (detected.category === 'video') {
-                        // 呼出专属的两端拖拽裁剪器让用户直观框选时段
-                        openVideoTrimmer(file, detected);
-                        return; // 单次视频由弹窗接管，处理完后可继续追加
-                    } else if (detected.category === 'animated_image' || (detected.mime === 'image/webp' && detected.isAnimated)) {
-                        // 动图文件基于 ImageDecoder 解码
-                        setLoadingState(true, `正在解析动图 ${file.name} [${detected.formatLabel}]...`);
-                        const decoded = await decodeAnimatedImage(file, detected.mime, detected.formatLabel);
-                        hiddenFrames.push(...decoded);
-                        showToast(`已成功识别 ${file.name} 为 ${detected.formatLabel} 动图，解析 ${decoded.length} 帧`, "success");
+                    if (detected.category === 'video' || detected.category === 'animated_image') {
+                        // 呼出统一的多媒体（视频 / 动图）两端拖拽裁剪器让用户直观框选时段或全选
+                        await openMediaTrimmer(file, detected);
+                        return; // 单次动态媒体由弹窗接管，处理完后可继续追加
                     } else if (detected.category === 'image') {
                         // 普通静态图片使用真实检测 MIME 封装读取，规避错误后缀污染
                         const imageMime = detected.mime || file.type || "image/png";
