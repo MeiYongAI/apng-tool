@@ -6,16 +6,14 @@
     <title>APNG 伪装图片制作工具</title>
     <script>
         (function() {
-            const savedPref = localStorage.getItem('apng_theme_mode') || 'auto';
-            let resolved = 'dark';
-            if (savedPref === 'light') {
-                resolved = 'light';
-            } else if (savedPref === 'dark') {
-                resolved = 'dark';
+            const savedTheme = localStorage.getItem('apng_theme_mode');
+            let theme = 'dark';
+            if (savedTheme === 'light' || savedTheme === 'dark') {
+                theme = savedTheme;
             } else {
-                resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+                theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
             }
-            document.documentElement.setAttribute('data-theme', resolved);
+            document.documentElement.setAttribute('data-theme', theme);
         })();
     </script>
     <style>
@@ -1056,15 +1054,11 @@
                 <h1>APNG 伪装图片制作工具</h1>
             </div>
             <div class="theme-switcher" id="theme-switcher" role="radiogroup" aria-label="主题切换">
-                <button type="button" class="theme-btn" data-theme-val="auto" title="跟随系统设置">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                    <span>系统</span>
-                </button>
-                <button type="button" class="theme-btn" data-theme-val="dark" title="暗色模式">
+                <button type="button" class="theme-btn" id="theme-btn-dark" data-theme-val="dark" title="暗色模式">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     <span>暗色</span>
                 </button>
-                <button type="button" class="theme-btn" data-theme-val="light" title="亮色模式">
+                <button type="button" class="theme-btn" id="theme-btn-light" data-theme-val="light" title="亮色模式">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
                     <span>亮色</span>
                 </button>
@@ -4169,44 +4163,40 @@
         }
 
         /**
-         * 获取本地持久化保存的主题偏好设置。
+         * 获取当前生效或存储的主题模式。若用户未曾手动选择，则自动检测系统主题外观。
          *
-         * @returns {'auto' | 'dark' | 'light'} 返回存储的主题配置，默认为 'auto'。
+         * @returns {'dark' | 'light'} 返回当前主题（'dark' 或 'light'）。
          * @see Callers:
          *  - `setupThemeSwitcher`
          */
-        function getStoredThemePreference() {
+        function getInitialTheme() {
             const saved = localStorage.getItem("apng_theme_mode");
             if (saved === 'dark' || saved === 'light') {
                 return saved;
             }
-            return 'auto';
+            return (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
         }
 
         /**
-         * 应用指定的主题偏好设置并更新 HTML 根节点属性与 UI 切换开关的高亮激活状态。
+         * 应用指定的主题模式（仅限 'dark' 与 'light' 两态）并更新 UI 高亮与本地存储。
          *
-         * @param {'auto' | 'dark' | 'light'} preference - 期望生效的主题模式偏好。
+         * @param {'dark' | 'light'} theme - 期望生效的主题模式。
+         * @param {boolean} [persist=true] - 是否将用户偏好显式持久化至本地存储。
          * @returns {void}
          * @see Callers:
          *  - `setupThemeSwitcher`
          */
-        function applyTheme(preference) {
-            let effectiveTheme = 'dark';
-            if (preference === 'light') {
-                effectiveTheme = 'light';
-            } else if (preference === 'dark') {
-                effectiveTheme = 'dark';
-            } else {
-                effectiveTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-            }
-
+        function applyTheme(theme, persist = true) {
+            const effectiveTheme = (theme === 'light') ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', effectiveTheme);
-            localStorage.setItem("apng_theme_mode", preference);
+
+            if (persist) {
+                localStorage.setItem("apng_theme_mode", effectiveTheme);
+            }
 
             const themeButtons = document.querySelectorAll(".theme-btn");
             themeButtons.forEach(btn => {
-                if (btn.getAttribute("data-theme-val") === preference) {
+                if (btn.getAttribute("data-theme-val") === effectiveTheme) {
                     btn.classList.add("active");
                 } else {
                     btn.classList.remove("active");
@@ -4215,31 +4205,36 @@
         }
 
         /**
-         * 初始化主题切换器交互事件与系统外观模式变动监听器。
+         * 初始化两态主题切换器交互事件与系统主题变化实时监听器。
          *
          * @returns {void}
          * @see Callers:
          *  - `window.DOMContentLoaded`
          */
         function setupThemeSwitcher() {
-            const currentPref = getStoredThemePreference();
-            applyTheme(currentPref);
+            const saved = localStorage.getItem("apng_theme_mode");
+            const hasUserChoice = (saved === 'dark' || saved === 'light');
+            const activeTheme = getInitialTheme();
+
+            applyTheme(activeTheme, hasUserChoice);
 
             const themeButtons = document.querySelectorAll(".theme-btn");
             themeButtons.forEach(btn => {
                 btn.addEventListener("click", () => {
                     const chosen = btn.getAttribute("data-theme-val");
-                    if (chosen === 'auto' || chosen === 'dark' || chosen === 'light') {
-                        applyTheme(chosen);
+                    if (chosen === 'dark' || chosen === 'light') {
+                        applyTheme(chosen, true);
                     }
                 });
             });
 
+            // 支持系统主题变动实时侦测（若用户尚未显式固定偏好）
             if (window.matchMedia) {
                 const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
-                mediaQuery.addEventListener("change", () => {
-                    if (getStoredThemePreference() === 'auto') {
-                        applyTheme('auto');
+                mediaQuery.addEventListener("change", (e) => {
+                    const userSaved = localStorage.getItem("apng_theme_mode");
+                    if (!userSaved) {
+                        applyTheme(e.matches ? 'light' : 'dark', false);
                     }
                 });
             }
