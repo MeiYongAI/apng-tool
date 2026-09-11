@@ -4,11 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>APNG 伪装图片制作工具</title>
+    <script>
+        (function() {
+            const savedPref = localStorage.getItem('apng_theme_mode') || 'auto';
+            let resolved = 'dark';
+            if (savedPref === 'light') {
+                resolved = 'light';
+            } else if (savedPref === 'dark') {
+                resolved = 'dark';
+            } else {
+                resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            }
+            document.documentElement.setAttribute('data-theme', resolved);
+        })();
+    </script>
     <style>
-        :root {
+        :root, [data-theme="dark"] {
             --bg-color: #0f172a;
             --card-bg: #1e293b;
             --card-sub-bg: #111827;
+            --card-inner-bg: rgba(15, 23, 42, 0.6);
             --border-color: #334155;
             --text-main: #f8fafc;
             --text-sub: #94a3b8;
@@ -19,29 +34,59 @@
             --danger: #ef4444;
             --danger-hover: #dc2626;
             --warning: #f59e0b;
+            --scrollbar-track: rgba(15, 23, 42, 0.6);
+            --scrollbar-thumb: #334155;
+            --scrollbar-thumb-hover: #475569;
+            --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            --shadow-modal: 0 20px 30px rgba(0, 0, 0, 0.6);
+            --theme-toggle-bg: #111827;
+            --theme-toggle-btn-hover: #1e293b;
+        }
+        [data-theme="light"] {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --card-sub-bg: #f8fafc;
+            --card-inner-bg: rgba(241, 245, 249, 0.85);
+            --border-color: #cbd5e1;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --accent: #059669;
+            --accent-hover: #047857;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --warning: #d97706;
+            --scrollbar-track: rgba(226, 232, 240, 0.85);
+            --scrollbar-thumb: #94a3b8;
+            --scrollbar-thumb-hover: #64748b;
+            --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
+            --shadow-modal: 0 20px 30px rgba(0, 0, 0, 0.18);
+            --theme-toggle-bg: #e2e8f0;
+            --theme-toggle-btn-hover: #f1f5f9;
         }
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
             scrollbar-width: thin;
-            scrollbar-color: #334155 rgba(15, 23, 42, 0.6);
+            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         }
         ::-webkit-scrollbar {
             width: 7px;
             height: 7px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.6);
+            background: var(--scrollbar-track);
             border-radius: 4px;
         }
         ::-webkit-scrollbar-thumb {
-            background: #334155;
+            background: var(--scrollbar-thumb);
             border-radius: 4px;
             transition: background 0.2s ease;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #475569;
+            background: var(--scrollbar-thumb-hover);
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -52,6 +97,7 @@
             flex-direction: column;
             align-items: center;
             padding: 32px 16px;
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
         .container {
             width: 100%;
@@ -60,14 +106,61 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 28px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            box-shadow: var(--shadow-main);
             margin-bottom: 24px;
+            transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        .header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            gap: 16px;
+        }
+        .header-title-wrap {
+            flex: 1;
+            text-align: center;
         }
         h1 {
             font-size: 24px;
             font-weight: 700;
-            text-align: center;
-            margin-bottom: 8px;
+            color: var(--text-main);
+            line-height: 1.3;
+        }
+        .theme-switcher {
+            display: inline-flex;
+            background: var(--theme-toggle-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 2px;
+            user-select: none;
+            flex-shrink: 0;
+            transition: background-color 0.25s ease, border-color 0.25s ease;
+        }
+        .theme-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 5px 10px;
+            font-size: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            line-height: 1;
+        }
+        .theme-btn:hover {
+            color: var(--text-main);
+            background: var(--theme-toggle-btn-hover);
+        }
+        .theme-btn.active {
+            background: var(--card-bg);
+            color: var(--primary);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            font-weight: 600;
         }
         .description {
             color: var(--text-sub);
@@ -88,7 +181,7 @@
             }
         }
         .section-box {
-            background: rgba(15, 23, 42, 0.5);
+            background: var(--card-inner-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 16px;
@@ -133,7 +226,7 @@
             text-align: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            background: rgba(15, 23, 42, 0.3);
+            background: var(--card-inner-bg);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -351,7 +444,7 @@
             flex-direction: column;
             gap: 12px;
             margin-bottom: 24px;
-            background: rgba(15, 23, 42, 0.6);
+            background: var(--card-inner-bg);
             padding: 16px;
             border-radius: 8px;
             border: 1px solid var(--border-color);
@@ -425,7 +518,7 @@
             margin-bottom: 18px;
         }
         .preview-box {
-            background: rgba(15, 23, 42, 0.6);
+            background: var(--card-inner-bg);
             padding: 14px;
             border-radius: 8px;
             border: 1px solid var(--border-color);
@@ -468,7 +561,8 @@
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+            box-shadow: var(--shadow-main);
+            transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
         .history-header {
             display: flex;
@@ -486,13 +580,14 @@
             gap: 16px;
         }
         .history-card {
-            background: rgba(15, 23, 42, 0.6);
+            background: var(--card-inner-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 14px;
             display: flex;
             flex-direction: column;
             gap: 10px;
+            transition: background-color 0.25s ease, border-color 0.25s ease;
         }
         .history-card-top {
             display: flex;
@@ -595,10 +690,11 @@
             border-radius: 12px;
             width: 100%;
             max-width: 680px;
-            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+            box-shadow: var(--shadow-modal);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
         .modal-header {
             padding: 16px 20px;
@@ -685,6 +781,15 @@
             justify-content: center;
             z-index: 2;
             box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+        }
+        .timeline-handle::before {
+            content: "";
+            position: absolute;
+            top: -12px;
+            bottom: -12px;
+            left: -14px;
+            right: -14px;
+            cursor: ew-resize;
         }
         .timeline-handle::after {
             content: "";
@@ -780,11 +885,191 @@
         .btn-modal.primary:hover {
             background: var(--primary-hover);
         }
+
+        /* 移动端无障碍响应式断点深度适配 */
+        @media (max-width: 640px) {
+            body {
+                padding: 16px 8px;
+            }
+            .container {
+                padding: 16px 12px;
+                border-radius: 10px;
+                margin-bottom: 16px;
+            }
+            .header-bar {
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 12px;
+            }
+            .header-title-wrap h1 {
+                font-size: 20px;
+            }
+            .theme-switcher {
+                width: 100%;
+                max-width: 300px;
+                display: flex;
+            }
+            .theme-btn {
+                flex: 1;
+                justify-content: center;
+                padding: 6px 4px;
+                font-size: 12px;
+            }
+            .description {
+                font-size: 13px;
+                margin-bottom: 16px;
+                text-align: left;
+            }
+            .section-box {
+                padding: 12px;
+            }
+            .section-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            .tab-group {
+                width: 100%;
+                display: flex;
+            }
+            .tab-btn {
+                flex: 1;
+                text-align: center;
+                padding: 6px 4px;
+                font-size: 12px;
+            }
+            .color-row {
+                flex-wrap: wrap;
+            }
+            .frame-list-wrapper {
+                max-height: 320px;
+            }
+            .frame-item {
+                flex-wrap: wrap;
+                padding: 10px;
+                gap: 8px 10px;
+            }
+            .frame-index {
+                width: 20px;
+            }
+            .frame-thumb {
+                width: 40px;
+                height: 40px;
+            }
+            .frame-meta {
+                flex: 1 1 calc(100% - 75px);
+            }
+            .frame-delay-control {
+                flex: 1;
+                margin-left: 28px;
+            }
+            .frame-actions {
+                margin-left: auto;
+            }
+            .batch-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .batch-inputs {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .batch-toolbar button {
+                width: 100%;
+                padding: 7px 10px;
+            }
+            .controls {
+                padding: 12px;
+            }
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 6px;
+            }
+            .control-group select {
+                width: 100%;
+            }
+            .preview-box {
+                padding: 10px;
+            }
+            .history-section {
+                padding: 16px 12px;
+                border-radius: 10px;
+            }
+            .history-list {
+                grid-template-columns: 1fr;
+            }
+            .history-thumb {
+                width: 60px;
+                height: 60px;
+            }
+            .modal-overlay {
+                padding: 8px;
+            }
+            .modal-dialog {
+                max-height: 94vh;
+                border-radius: 10px;
+            }
+            .modal-header {
+                padding: 12px 14px;
+            }
+            .modal-body {
+                padding: 14px;
+                gap: 12px;
+                overflow-y: auto;
+            }
+            .trimmer-video-wrapper {
+                height: 180px;
+            }
+            .trimmer-info-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+            .trimmer-control-row {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .fps-mode-selector {
+                width: 100%;
+                justify-content: space-between;
+            }
+            .modal-footer {
+                padding: 12px 14px;
+                flex-direction: column-reverse;
+                gap: 8px;
+            }
+            .modal-footer button {
+                width: 100%;
+                padding: 9px 16px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>APNG 伪装图片制作工具</h1>
+        <div class="header-bar">
+            <div class="header-title-wrap">
+                <h1>APNG 伪装图片制作工具</h1>
+            </div>
+            <div class="theme-switcher" id="theme-switcher" role="radiogroup" aria-label="主题切换">
+                <button type="button" class="theme-btn" data-theme-val="auto" title="跟随系统设置">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    <span>系统</span>
+                </button>
+                <button type="button" class="theme-btn" data-theme-val="dark" title="暗色模式">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <span>暗色</span>
+                </button>
+                <button type="button" class="theme-btn" data-theme-val="light" title="亮色模式">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <span>亮色</span>
+                </button>
+            </div>
+        </div>
         <p class="description">
             基于 APNG 标准规范实现：外层缩略仅解码首帧静态块显示封面，点开大图播放动画序列轮播隐藏项目。<br>
             完全在本地浏览器端完成，支持纯色/图片封面、多图/动图/视频作为隐藏项、视频双端拖拽裁切与原帧率/任意帧率自定义。
@@ -2978,12 +3263,8 @@
 
             const onPointerUp = (e) => {
                 if (trimmerState.activeDrag) {
-                    try {
-                        if (e.target && typeof e.target.releasePointerCapture === "function") {
-                            e.target.releasePointerCapture(e.pointerId);
-                        }
-                    } catch (_) {
-                        // 忽略释放异常
+                    if (e.target && typeof e.target.hasPointerCapture === "function" && e.target.hasPointerCapture(e.pointerId)) {
+                        e.target.releasePointerCapture(e.pointerId);
                     }
                     trimmerState.activeDrag = null;
                 }
@@ -3887,7 +4168,87 @@
             }
         }
 
+        /**
+         * 获取本地持久化保存的主题偏好设置。
+         *
+         * @returns {'auto' | 'dark' | 'light'} 返回存储的主题配置，默认为 'auto'。
+         * @see Callers:
+         *  - `setupThemeSwitcher`
+         */
+        function getStoredThemePreference() {
+            const saved = localStorage.getItem("apng_theme_mode");
+            if (saved === 'dark' || saved === 'light') {
+                return saved;
+            }
+            return 'auto';
+        }
+
+        /**
+         * 应用指定的主题偏好设置并更新 HTML 根节点属性与 UI 切换开关的高亮激活状态。
+         *
+         * @param {'auto' | 'dark' | 'light'} preference - 期望生效的主题模式偏好。
+         * @returns {void}
+         * @see Callers:
+         *  - `setupThemeSwitcher`
+         */
+        function applyTheme(preference) {
+            let effectiveTheme = 'dark';
+            if (preference === 'light') {
+                effectiveTheme = 'light';
+            } else if (preference === 'dark') {
+                effectiveTheme = 'dark';
+            } else {
+                effectiveTheme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+            }
+
+            document.documentElement.setAttribute('data-theme', effectiveTheme);
+            localStorage.setItem("apng_theme_mode", preference);
+
+            const themeButtons = document.querySelectorAll(".theme-btn");
+            themeButtons.forEach(btn => {
+                if (btn.getAttribute("data-theme-val") === preference) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+        }
+
+        /**
+         * 初始化主题切换器交互事件与系统外观模式变动监听器。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `window.DOMContentLoaded`
+         */
+        function setupThemeSwitcher() {
+            const currentPref = getStoredThemePreference();
+            applyTheme(currentPref);
+
+            const themeButtons = document.querySelectorAll(".theme-btn");
+            themeButtons.forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const chosen = btn.getAttribute("data-theme-val");
+                    if (chosen === 'auto' || chosen === 'dark' || chosen === 'light') {
+                        applyTheme(chosen);
+                    }
+                });
+            });
+
+            if (window.matchMedia) {
+                const mediaQuery = window.matchMedia('(prefers-color-scheme: light)');
+                mediaQuery.addEventListener("change", () => {
+                    if (getStoredThemePreference() === 'auto') {
+                        applyTheme('auto');
+                    }
+                });
+            }
+        }
+
         window.addEventListener("DOMContentLoaded", () => {
+            // 初始化主题切换与系统监听
+            setupThemeSwitcher();
+
             // 封面模式切换
             document.getElementById("tab-cover-color").addEventListener("click", () => setCoverMode('color'));
             document.getElementById("tab-cover-image").addEventListener("click", () => setCoverMode('image'));
