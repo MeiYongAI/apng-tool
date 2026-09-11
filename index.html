@@ -347,6 +347,38 @@
             border-radius: 6px;
             padding: 8px 10px;
             gap: 10px;
+            position: relative;
+            transition: transform 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+        }
+        .frame-item.dragging {
+            opacity: 0.4;
+            transform: scale(0.98);
+            border: 1px dashed var(--primary);
+        }
+        .frame-item.drag-over-top {
+            border-top: 2px solid var(--primary);
+        }
+        .frame-item.drag-over-bottom {
+            border-bottom: 2px solid var(--primary);
+        }
+        .frame-drag-handle {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sub);
+            font-size: 14px;
+            cursor: grab;
+            padding: 0 4px;
+            user-select: none;
+            line-height: 1;
+            flex-shrink: 0;
+            transition: color 0.15s;
+        }
+        .frame-drag-handle:hover {
+            color: var(--primary);
+        }
+        .frame-drag-handle:active {
+            cursor: grabbing;
         }
         .frame-index {
             font-size: 12px;
@@ -498,6 +530,123 @@
             background: rgba(239, 68, 68, 0.15);
             border: 1px solid var(--danger);
             color: #fca5a5;
+        }
+
+        /* 细粒度合成进度条组件 */
+        .progress-box {
+            margin-top: 14px;
+            background: var(--card-inner-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: left;
+            animation: fadeIn 0.2s ease;
+        }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+        }
+        .progress-stage {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+        .progress-percent {
+            color: var(--primary);
+            font-weight: 700;
+            font-family: monospace;
+        }
+        .progress-bar-track {
+            width: 100%;
+            height: 7px;
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 3px;
+            transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 文件大小与规格角标 */
+        .file-size-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* 区域大范围拖拽高亮 */
+        .section-box.drag-over-active {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+        }
+
+        /* 优雅浮动 Toast 通知容器 */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .toast-msg {
+            pointer-events: auto;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 9px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(8px);
+            animation: toastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+        .toast-msg.toast-fade-out {
+            opacity: 0;
+            transform: translateY(-8px);
+        }
+        .toast-msg.success {
+            border-color: var(--accent);
+        }
+        .toast-msg.error {
+            border-color: var(--danger);
+        }
+        .toast-msg.warning {
+            border-color: var(--warning);
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-12px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         /* 结果区域 */
@@ -1048,6 +1197,7 @@
     </style>
 </head>
 <body>
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
     <div class="container">
         <div class="header-bar">
             <div class="header-title-wrap">
@@ -1241,6 +1391,7 @@
                             <option value="s">秒 (s)</option>
                         </select>
                         <button id="btn-apply-batch-delay" class="btn-icon" type="button">应用到全部</button>
+                        <button id="btn-reverse-frames" class="btn-icon" type="button" title="一键颠倒当前隐藏帧序列的播放顺序">⇄ 倒序排列</button>
                     </div>
                     <button id="btn-clear-all-frames" class="btn-icon danger" type="button">清空列表</button>
                 </div>
@@ -1284,11 +1435,23 @@
         </div>
 
         <button id="btn-generate" class="btn-generate" disabled>请添加至少 1 个隐藏帧</button>
+        <div id="generate-progress-box" class="progress-box" style="display: none;">
+            <div class="progress-header">
+                <span id="progress-stage-text" class="progress-stage">正在准备合成...</span>
+                <span id="progress-percent-text" class="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar-track">
+                <div id="progress-bar-fill" class="progress-bar-fill"></div>
+            </div>
+        </div>
         <div id="alert-box" class="alert alert-error"></div>
 
         <!-- 合成结果 -->
         <div id="result-section" class="result-section">
-            <h3 style="margin-bottom: 14px;">合成成功！</h3>
+            <h3 style="margin-bottom: 8px;">合成成功！</h3>
+            <div style="margin-bottom: 14px;">
+                <span id="result-file-size" class="file-size-badge" style="display: none;">文件大小: 0 KB</span>
+            </div>
             <div class="result-preview">
                 <div class="preview-box">
                     <h4>合成结果（APNG 动态预览）</h4>
@@ -3618,6 +3781,52 @@
             hiddenFrames.forEach((frame, index) => {
                 const itemDiv = document.createElement("div");
                 itemDiv.className = "frame-item";
+                itemDiv.draggable = true;
+
+                // 拖拽手柄抓手
+                const dragHandle = document.createElement("span");
+                dragHandle.className = "frame-drag-handle";
+                dragHandle.textContent = "⠿";
+                dragHandle.title = "长按或拖拽调整帧顺序";
+                itemDiv.appendChild(dragHandle);
+
+                // 原生 HTML5 拖拽事件绑定
+                itemDiv.addEventListener("dragstart", (e) => {
+                    itemDiv.classList.add("dragging");
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", String(index));
+                });
+
+                itemDiv.addEventListener("dragover", (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    const rect = itemDiv.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    if (e.clientY < midY) {
+                        itemDiv.classList.add("drag-over-top");
+                        itemDiv.classList.remove("drag-over-bottom");
+                    } else {
+                        itemDiv.classList.add("drag-over-bottom");
+                        itemDiv.classList.remove("drag-over-top");
+                    }
+                });
+
+                itemDiv.addEventListener("dragleave", () => {
+                    itemDiv.classList.remove("drag-over-top", "drag-over-bottom");
+                });
+
+                itemDiv.addEventListener("drop", (e) => {
+                    e.preventDefault();
+                    itemDiv.classList.remove("drag-over-top", "drag-over-bottom");
+                    const srcIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                    if (!isNaN(srcIdx) && srcIdx !== index) {
+                        reorderFrames(srcIdx, index);
+                    }
+                });
+
+                itemDiv.addEventListener("dragend", () => {
+                    itemDiv.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
+                });
 
                 const indexSpan = document.createElement("span");
                 indexSpan.className = "frame-index";
@@ -3673,7 +3882,7 @@
                     const btnUp = document.createElement("button");
                     btnUp.className = "btn-icon";
                     btnUp.textContent = "↑";
-                    btnUp.title = "上移";
+                    btnUp.title = "上移此帧";
                     btnUp.onclick = () => moveFrame(index, -1);
                     actionsDiv.appendChild(btnUp);
                 }
@@ -3682,7 +3891,7 @@
                     const btnDown = document.createElement("button");
                     btnDown.className = "btn-icon";
                     btnDown.textContent = "↓";
-                    btnDown.title = "下移";
+                    btnDown.title = "下移此帧";
                     btnDown.onclick = () => moveFrame(index, 1);
                     actionsDiv.appendChild(btnDown);
                 }
@@ -3707,6 +3916,42 @@
             if (currentCoverMode === 'frame') {
                 updateCoverLivePreview();
             }
+        }
+
+        /**
+         * 重新调整隐藏帧列表中条目的顺序，并重新渲染视图与联动同步。
+         *
+         * @param {number} srcIndex - 被拖拽条目的源索引。
+         * @param {number} targetIndex - 期望插入的目标索引。
+         * @returns {void}
+         * @see Callers:
+         *  - `renderHiddenFrameList` (drop 事件)
+         */
+        function reorderFrames(srcIndex, targetIndex) {
+            if (srcIndex < 0 || srcIndex >= hiddenFrames.length || targetIndex < 0 || targetIndex >= hiddenFrames.length) {
+                return;
+            }
+            const [moved] = hiddenFrames.splice(srcIndex, 1);
+            hiddenFrames.splice(targetIndex, 0, moved);
+            renderHiddenFrameList();
+            showToast(`已将帧重排至第 ${targetIndex + 1} 位`, 'info', 1500);
+        }
+
+        /**
+         * 一键倒序排列当前全部隐藏帧序列，并刷新列表与联动状态。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `btnReverseFrames.onclick`
+         */
+        function reverseFramesOrder() {
+            if (hiddenFrames.length < 2) {
+                showToast("至少需要 2 个隐藏帧才能执行倒序", "warning");
+                return;
+            }
+            hiddenFrames.reverse();
+            renderHiddenFrameList();
+            showToast("已完成隐藏帧序列倒序排列", "success");
         }
 
         /**
@@ -3742,6 +3987,7 @@
             hiddenFrames.splice(index, 1);
             renderHiddenFrameList();
             checkReadyState();
+            showToast("已移除 1 个隐藏帧", "info", 1500);
         }
 
         /**
@@ -3756,6 +4002,7 @@
             const parsedMs = parseDelayFromInput(rawVal, currentDelayUnit);
             hiddenFrames.forEach(f => { f.delayMs = parsedMs; });
             renderHiddenFrameList();
+            showToast(`已批量将所有帧停留时长更新为 ${formatDelayForDisplay(parsedMs, currentDelayUnit)}${currentDelayUnit}`, "success");
         }
 
         /**
@@ -3766,39 +4013,119 @@
          *  - `btnClearAllFrames.onclick`
          */
         function clearAllFrames() {
+            if (hiddenFrames.length === 0) return;
             hiddenFrames = [];
             renderHiddenFrameList();
             checkReadyState();
+            showToast("已清空所有隐藏项目帧", "info");
+        }
+
+        /**
+         * 在屏幕上方弹出非侵入式轻量 Toast 胶囊通知，并在指定时长后自动淡出。
+         *
+         * @param {string} message - 需要提示的文本信息。
+         * @param {'info' | 'success' | 'warning' | 'error'} [type='info'] - 消息类型外观。
+         * @param {number} [durationMs=2200] - 自动显示持续时长（毫秒）。
+         * @returns {void}
+         * @see Callers:
+         *  - `onGenerateClick`
+         *  - `reverseFramesOrder`
+         *  - `reorderFrames`
+         *  - `applyBatchDelay`
+         *  - `removeFrame`
+         *  - `clearAllFrames`
+         */
+        function showToast(message, type = 'info', durationMs = 2200) {
+            const container = document.getElementById("toast-container");
+            if (!container) return;
+
+            const toast = document.createElement("div");
+            toast.className = `toast-msg ${type}`;
+
+            let icon = "ℹ";
+            if (type === 'success') icon = "✓";
+            else if (type === 'warning') icon = "⚠";
+            else if (type === 'error') icon = "✕";
+
+            const iconSpan = document.createElement("span");
+            iconSpan.style.fontWeight = "700";
+            iconSpan.textContent = icon;
+
+            const textSpan = document.createElement("span");
+            textSpan.textContent = message;
+
+            toast.appendChild(iconSpan);
+            toast.appendChild(textSpan);
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add("toast-fade-out");
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                }, 260);
+            }, durationMs);
+        }
+
+        /**
+         * 将字节大小数值格式化为人类可读的字符串（如 KB、MB）。
+         *
+         * @param {number} bytes - 原始字节大小。
+         * @returns {string} 格式化后的文件大小描述字符串。
+         * @see Callers:
+         *  - `onGenerateClick`
+         */
+        function formatBytes(bytes) {
+            if (bytes <= 0) return "0 B";
+            const k = 1024;
+            const sizes = ["B", "KB", "MB", "GB"];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            if (i === 0) return `${bytes} B`;
+            return (bytes / Math.pow(k, i)).toFixed(2) + " " + sizes[i];
         }
 
         /**
          * 执行 APNG 伪装图片完整二进制合成流水线。
          *
+         * @param {(progress: { percent: number, text: string }) => void} [onProgress] - 进度通知回调函数。
          * @returns {Promise<{ apngBlob: Blob, targetWidth: number, targetHeight: number, totalDurationMs: number }>} 合成结果对象。
          * @throws {Error} 二进制组装或图像解析异常。
          * @see Callers:
          *  - `onGenerateClick`: 开始合成按钮点击处理函数。
          */
-        async function synthesizeApng() {
+        async function synthesizeApng(onProgress) {
             if (hiddenFrames.length === 0) {
                 throw new Error("请至少添加一个隐藏项目帧。");
             }
 
+            const report = (percent, text) => {
+                if (typeof onProgress === 'function') {
+                    onProgress({ percent, text });
+                }
+            };
+
+            report(5, "正在计算画布分辨率与准备工作环境...");
             // 计算目标画布分辨率（原尺寸/预设/自定义）
             const { targetWidth, targetHeight } = getFinalOutputDimensions();
             const mode = document.getElementById("select-mode").value;
 
             // 1. 规范化渲染带视觉修饰与混淆特性的封面为 PNG 二进制缓冲
+            report(12, "正在生成并渲染封面 (含视觉修饰与水印)...");
             const coverPngBuf = await renderCoverToPngBuffer(targetWidth, targetHeight, mode);
 
             // 2. 规范化渲染各个隐藏图为 PNG 二进制缓冲（统一遵循选定的画面适配方式）
-            const hiddenPngBuffers = await Promise.all(
-                hiddenFrames.map((frame) => {
-                    return renderImageToPngBuffer(frame.img, targetWidth, targetHeight, mode);
-                })
-            );
+            report(20, `封面渲染完毕，准备逐帧渲染 ${hiddenFrames.length} 张隐藏帧...`);
+            const hiddenPngBuffers = [];
+            for (let i = 0; i < hiddenFrames.length; i++) {
+                const buf = await renderImageToPngBuffer(hiddenFrames[i].img, targetWidth, targetHeight, mode);
+                hiddenPngBuffers.push(buf);
+                const stepPercent = 20 + Math.round(((i + 1) / hiddenFrames.length) * 55);
+                report(stepPercent, `正在渲染隐藏帧 (${i + 1}/${hiddenFrames.length})...`);
+            }
 
             // 3. 解析封面 PNG 数据块
+            report(78, "正在解析封面 PNG 数据块与提取 IDAT...");
             const coverParsed = parsePngChunks(coverPngBuf);
             const coverIdatList = coverParsed.chunks.filter(c => c.type === "IDAT").map(c => c.data);
             const totalCoverIdatLen = coverIdatList.reduce((acc, cur) => acc + cur.length, 0);
@@ -3810,6 +4137,7 @@
             }
 
             // 4. 解析首张隐藏图，提取 IHDR 数据块
+            report(82, "正在解析隐藏帧基础图像头...");
             const firstHiddenParsed = parsePngChunks(hiddenPngBuffers[0]);
             let ihdrPayload = null;
             for (const c of firstHiddenParsed.chunks) {
@@ -3823,6 +4151,7 @@
             }
 
             // 5. 解析并合并所有隐藏帧的 IDAT 载荷
+            report(86, "正在提取与解算所有隐藏帧数据载荷...");
             const framePayloads = hiddenPngBuffers.map(buf => {
                 const parsed = parsePngChunks(buf);
                 const idats = parsed.chunks.filter(c => c.type === "IDAT").map(c => c.data);
@@ -3837,6 +4166,7 @@
             });
 
             // 6. 构造 APNG 数据块序列
+            report(90, "正在组装 APNG 动画结构容器 (acTL / fcTL / fdAT)...");
             const outputChunks = [];
             // PNG Signature
             outputChunks.push(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -3954,7 +4284,10 @@
             // IEND
             outputChunks.push(buildPngChunk("IEND", new Uint8Array(0)));
 
+            report(98, "正在封装二进制 Blob 产物...");
             const blob = new Blob(outputChunks, { type: "image/png" });
+            report(100, "APNG 制作就绪！");
+
             return {
                 apngBlob: blob,
                 targetWidth,
@@ -4007,7 +4340,7 @@
 
                 const detailDiv = document.createElement("div");
                 detailDiv.className = "history-detail";
-                detailDiv.textContent = `${rec.resolution} | ${rec.frameCount} 帧序列`;
+                detailDiv.textContent = `${rec.resolution} | ${rec.frameCount} 帧序列${rec.fileSize ? ` | ${rec.fileSize}` : ''}`;
 
                 const badgeDiv = document.createElement("div");
                 badgeDiv.className = "history-badge";
@@ -4089,15 +4422,40 @@
         async function onGenerateClick() {
             clearError();
             const btn = document.getElementById("btn-generate");
+            const progressBox = document.getElementById("generate-progress-box");
+            const progressFill = document.getElementById("progress-bar-fill");
+            const progressStatus = document.getElementById("progress-stage-text");
+            const progressPercent = document.getElementById("progress-percent-text");
+
             btn.disabled = true;
             btn.textContent = "正在处理合成中...";
 
+            if (progressBox) {
+                progressBox.style.display = "block";
+                progressFill.style.width = "0%";
+                progressStatus.textContent = "准备启动合成流水线...";
+                progressPercent.textContent = "0%";
+            }
+
             try {
-                const result = await synthesizeApng();
+                const result = await synthesizeApng(({ percent, text }) => {
+                    if (progressFill) progressFill.style.width = `${percent}%`;
+                    if (progressStatus) progressStatus.textContent = text;
+                    if (progressPercent) progressPercent.textContent = `${percent}%`;
+                });
+
                 const url = URL.createObjectURL(result.apngBlob);
                 const fileName = `apng_disguise_${Date.now()}.png`;
+                const formattedSize = formatBytes(result.apngBlob.size);
 
                 displayApngResult(url, fileName);
+
+                const sizeBadge = document.getElementById("result-file-size");
+                if (sizeBadge) {
+                    sizeBadge.textContent = formattedSize;
+                }
+
+                showToast("APNG 伪装图片制作完成！", "success");
 
                 // 保存到 IndexedDB 本地历史
                 const now = new Date();
@@ -4150,6 +4508,7 @@
                     frameCount: hiddenFrames.length,
                     totalDurationMs: result.totalDurationMs,
                     resolution: `${result.targetWidth} × ${result.targetHeight}`,
+                    fileSize: formattedSize,
                     apngBlob: result.apngBlob
                 };
 
@@ -4157,7 +4516,11 @@
                 await refreshHistoryView();
             } catch (err) {
                 showError("合成处理失败: " + err.message);
+                showToast("合成处理失败: " + err.message, "error");
             } finally {
+                if (progressBox) {
+                    progressBox.style.display = "none";
+                }
                 checkReadyState();
             }
         }
@@ -4240,6 +4603,41 @@
             }
         }
 
+        /**
+         * 注册全局键盘快捷键监听（Esc 关闭视频裁剪弹窗，Space 切换视频播放/暂停）。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `window.DOMContentLoaded`
+         */
+        function setupKeyboardShortcuts() {
+            window.addEventListener("keydown", (e) => {
+                const modal = document.getElementById("modal-video-trimmer");
+                const isModalOpen = modal && modal.style.display !== "none" && modal.style.display !== "";
+
+                if (e.key === "Escape") {
+                    if (isModalOpen) {
+                        closeVideoTrimmer();
+                    }
+                } else if (e.key === " " || e.code === "Space") {
+                    if (isModalOpen) {
+                        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : "";
+                        if (activeTag !== "input" && activeTag !== "textarea") {
+                            e.preventDefault();
+                            const video = document.getElementById("trimmer-video");
+                            if (video) {
+                                if (video.paused) {
+                                    video.play();
+                                } else {
+                                    video.pause();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         window.addEventListener("DOMContentLoaded", () => {
             // 初始化主题切换与系统监听
             setupThemeSwitcher();
@@ -4286,10 +4684,14 @@
             // 视频时间轴裁剪交互初始化
             setupTimelineTrimmerEvents();
 
+            // 注册全局键盘快捷键
+            setupKeyboardShortcuts();
+
             // 批量操作与单位切换
             document.getElementById("select-delay-unit").addEventListener("change", (e) => switchDelayUnit(e.target.value));
             document.getElementById("btn-apply-batch-delay").addEventListener("click", applyBatchDelay);
             document.getElementById("btn-clear-all-frames").addEventListener("click", clearAllFrames);
+            document.getElementById("btn-reverse-frames").addEventListener("click", reverseFramesOrder);
 
             // 输出分辨率控件初始化
             setupResolutionControls();
