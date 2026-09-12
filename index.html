@@ -828,11 +828,12 @@
         /* 置顶时间轴控制中枢 (Batch Toolbar) */
         .batch-toolbar {
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px 12px;
             margin-top: 10px;
             margin-bottom: 8px;
-            padding: 9px 12px;
+            padding: 8px 10px;
             background: var(--card-sub-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -842,18 +843,14 @@
         .batch-toolbar-left {
             display: flex;
             align-items: center;
-            justify-content: space-between;
             gap: 10px;
-            width: 100%;
+            flex-wrap: wrap;
         }
         .batch-toolbar-right {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
-            gap: 8px;
-            width: 100%;
-            border-top: 1px dashed var(--border-color);
-            padding-top: 7px;
+            gap: 6px;
+            margin-left: auto;
         }
         .speed-presets-group {
             display: inline-flex;
@@ -2453,7 +2450,6 @@
                             </div>
                         </div>
                         <div class="batch-toolbar-right">
-                            <button id="btn-seamless-loop" class="btn-icon" type="button" title="检测并剔除首尾重复帧，消除循环顿挫">↻ 闭环去重</button>
                             <button id="btn-reverse-frames" class="btn-icon" type="button" title="颠倒当前帧序列顺序">⇄ 倒序</button>
                             <button id="btn-clear-all-frames" class="btn-icon danger" type="button">清空</button>
                         </div>
@@ -5728,13 +5724,7 @@
                     closeVideoTrimmer();
                     renderHiddenFrameList();
                     checkReadyState();
-
-                    const isDeduplicated = (newFrames.length >= 3) ? optimizeLoopSeamlessness(true) : false;
-                    if (isDeduplicated) {
-                        showToast(`已成功从动图抽取 ${newFrames.length - 1} 帧（已自动剔除首尾重复帧以确保无缝循环）`, "success", 2800);
-                    } else {
-                        showToast(`已成功从动图抽取 ${newFrames.length} 帧并追加至隐藏帧`, "success");
-                    }
+                    showToast(`已成功从动图抽取 ${newFrames.length} 帧并追加至隐藏帧`, "success");
                 } catch (err) {
                     showError(`动图帧提取失败: ${err.message}`);
                 } finally {
@@ -5753,13 +5743,7 @@
                     hiddenFrames.push(...extracted);
                     renderHiddenFrameList();
                     checkReadyState();
-
-                    const isVideoDeduplicated = (extracted.length >= 3) ? optimizeLoopSeamlessness(true) : false;
-                    if (isVideoDeduplicated) {
-                        showToast(`已成功从视频抽取 ${extracted.length - 1} 帧（已自动剔除首尾重复帧以确保无缝循环）`, "success", 2800);
-                    } else {
-                        showToast(`已成功从视频抽取 ${extracted.length} 帧并追加至隐藏帧`, "success");
-                    }
+                    showToast(`已成功从视频抽取 ${extracted.length} 帧并追加至隐藏帧`, "success");
                 } catch (err) {
                     showError(`视频时段抽帧失败: ${err.message}`);
                 } finally {
@@ -6301,91 +6285,6 @@
             hiddenFrames.reverse();
             renderHiddenFrameList();
             showToast("已完成隐藏帧序列倒序排列", "success");
-        }
-
-        /**
-         * 比较两个隐藏帧图像内容的相似度。
-         *
-         * 通过离屏 Canvas 统一缩放至 64×64 灰度采样矩阵，计算像素级平均绝对色差比率。
-         *
-         * @param {HiddenFrameItem} frameA - 比较的基准帧对象。
-         * @param {HiddenFrameItem} frameB - 比较的目标帧对象。
-         * @returns {number} 相似度百分比（0.0 ~ 1.0，1.0 表示完全相同）。
-         * @see Callers:
-         *  - `index.html:optimizeLoopSeamlessness`
-         */
-        function checkFramesSimilarity(frameA, frameB) {
-            if (!frameA || !frameB || !frameA.img || !frameB.img) return 0;
-
-            const sampleSize = 64;
-            const canvasA = document.createElement("canvas");
-            canvasA.width = sampleSize;
-            canvasA.height = sampleSize;
-            const ctxA = canvasA.getContext("2d", { willReadFrequently: true });
-            ctxA.drawImage(frameA.img, 0, 0, sampleSize, sampleSize);
-
-            const canvasB = document.createElement("canvas");
-            canvasB.width = sampleSize;
-            canvasB.height = sampleSize;
-            const ctxB = canvasB.getContext("2d", { willReadFrequently: true });
-            ctxB.drawImage(frameB.img, 0, 0, sampleSize, sampleSize);
-
-            const dataA = ctxA.getImageData(0, 0, sampleSize, sampleSize).data;
-            const dataB = ctxB.getImageData(0, 0, sampleSize, sampleSize).data;
-
-            let totalDiff = 0;
-            const totalPixels = sampleSize * sampleSize;
-
-            for (let i = 0; i < dataA.length; i += 4) {
-                const diffR = Math.abs(dataA[i] - dataB[i]);
-                const diffG = Math.abs(dataA[i + 1] - dataB[i + 1]);
-                const diffB = Math.abs(dataA[i + 2] - dataB[i + 2]);
-                const diffA = Math.abs(dataA[i + 3] - dataB[i + 3]);
-                totalDiff += (diffR + diffG + diffB + diffA) / (255 * 4);
-            }
-
-            return 1 - (totalDiff / totalPixels);
-        }
-
-        /**
-         * 检测并剔除隐藏帧序列末尾与首帧重复的画面，消除循环播放时的停顿感。
-         *
-         * @param {boolean} [silent=false] - 是否静默执行（为 true 时仅返回剔除结果而不弹窗提示）。
-         * @returns {boolean} 是否成功检测并剔除了末尾重复帧。
-         * @see Callers:
-         *  - `index.html:confirmMediaTrimmer`
-         *  - `index.html:setupBatchSpeedEvents` (btnSeamlessLoop.onclick)
-         */
-        function optimizeLoopSeamlessness(silent = false) {
-            if (hiddenFrames.length < 3) {
-                if (!silent) {
-                    showToast("至少需要 3 个帧才建议进行首尾闭环优化", "info");
-                }
-                return false;
-            }
-
-            const firstFrame = hiddenFrames[0];
-            const lastFrame = hiddenFrames[hiddenFrames.length - 1];
-            const similarity = checkFramesSimilarity(firstFrame, lastFrame);
-
-            // 当首尾两帧相似度大于 98.5% 时判定为首尾循环重复帧
-            if (similarity >= 0.985) {
-                const removed = hiddenFrames.pop();
-                if (removed && removed.blobUrl) {
-                    URL.revokeObjectURL(removed.blobUrl);
-                }
-                renderHiddenFrameList();
-                checkReadyState();
-                if (!silent) {
-                    showToast(`检测到首尾帧相似度高达 ${(similarity * 100).toFixed(1)}%，已剔除末尾重复帧`, "success", 2500);
-                }
-                return true;
-            } else {
-                if (!silent) {
-                    showToast(`首尾帧相似度为 ${(similarity * 100).toFixed(1)}%，未检测到首尾重复帧`, "info", 2000);
-                }
-                return false;
-            }
         }
 
         /**
@@ -7540,7 +7439,6 @@
             });
             document.getElementById("btn-clear-all-frames").addEventListener("click", clearAllFrames);
             document.getElementById("btn-reverse-frames").addEventListener("click", reverseFramesOrder);
-            document.getElementById("btn-seamless-loop").addEventListener("click", () => optimizeLoopSeamlessness(false));
 
             // 输出分辨率控件初始化
             setupResolutionControls();
