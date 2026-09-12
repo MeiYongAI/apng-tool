@@ -482,14 +482,380 @@
             max-height: 94%;
             transition: all 0.2s ease;
         }
-        .cover-preview-canvas.fill-stage {
+
+        /* 封面文字图内交互变换控制器 */
+        .cover-text-transformer {
+            position: absolute;
+            box-sizing: border-box;
+            border: 1.5px solid var(--primary);
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 4px 14px rgba(0, 0, 0, 0.25);
+            background: rgba(59, 130, 246, 0.08);
+            border-radius: 4px;
+            cursor: move;
+            z-index: 10;
+            user-select: none;
+            touch-action: none;
+            transform-origin: center center;
+            pointer-events: auto;
+        }
+        .cover-text-transformer:hover {
+            border-color: #60a5fa;
+            background: rgba(59, 130, 246, 0.12);
+        }
+        .transformer-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #ffffff;
+            border: 1.5px solid var(--primary);
+            border-radius: 2px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+            box-sizing: border-box;
+            z-index: 12;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        .transformer-handle:hover {
+            transform: scale(1.3);
+            background-color: #3b82f6;
+            border-color: #ffffff;
+        }
+        .transformer-handle.handle-nw {
+            top: -5px;
+            left: -5px;
+            cursor: nwse-resize;
+        }
+        .transformer-handle.handle-ne {
+            top: -5px;
+            right: -5px;
+            cursor: nesw-resize;
+        }
+        .transformer-handle.handle-se {
+            bottom: -5px;
+            right: -5px;
+            cursor: nwse-resize;
+        }
+        .transformer-handle.handle-sw {
+            bottom: -5px;
+            left: -5px;
+            cursor: nesw-resize;
+        }
+        .transformer-rotator {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: grab;
+            z-index: 13;
+        }
+        .transformer-rotator:active {
+            cursor: grabbing;
+        }
+        .rotator-handle {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #ffffff;
+            border: 2px solid var(--primary);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            box-sizing: border-box;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        .transformer-rotator:hover .rotator-handle {
+            transform: scale(1.25);
+            background-color: var(--primary);
+        }
+        .rotator-line {
+            width: 1.5px;
+            height: 12px;
+            background-color: var(--primary);
+            box-shadow: 0 0 1px rgba(255, 255, 255, 0.5);
+        }
+
+        /* 扩展移动端触摸热区 (Hit Target) 到 38px，杜绝误触 */
+        .transformer-handle::before {
+            content: "";
+            position: absolute;
+            top: -14px;
+            left: -14px;
+            right: -14px;
+            bottom: -14px;
+            background: transparent;
+            z-index: 2;
+        }
+        .rotator-handle::before {
+            content: "";
+            position: absolute;
+            top: -13px;
+            left: -13px;
+            right: -13px;
+            bottom: -13px;
+            background: transparent;
+            z-index: 2;
+        }
+
+        /* 封面预览右下角放大编辑悬浮触发按钮 */
+        .btn-open-cover-editor {
+            position: absolute;
+            right: 12px;
+            bottom: 12px;
+            z-index: 15;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 13px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #ffffff;
+            background: rgba(15, 23, 42, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 6px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .btn-open-cover-editor:hover {
+            background: var(--primary);
+            border-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45);
+        }
+        .btn-open-cover-editor:active {
+            transform: translateY(0);
+        }
+
+        /* 显式剪贴板粘贴按钮 */
+        .btn-clipboard-paste {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            font-size: 11.5px;
+            font-weight: 500;
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px dashed var(--primary);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .btn-clipboard-paste:hover {
+            background: var(--primary);
+            color: #ffffff;
+            border-style: solid;
+        }
+
+        /* 沉浸式封面编辑模态框布局 */
+        .modal-dialog.cover-editor-dialog {
+            max-width: 1180px;
+            width: 92vw;
+            height: 86vh;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px;
+            box-shadow: var(--shadow-modal);
+            overscroll-behavior: contain;
+        }
+        .cover-editor-body {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            gap: 16px;
+            padding: 16px 20px;
+            overflow: hidden;
+            background: var(--card-inner-bg);
+            overscroll-behavior: contain;
+        }
+        .cover-editor-stage-wrap {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--card-sub-bg);
+            background-image: 
+                linear-gradient(45deg, rgba(128, 128, 128, 0.12) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(128, 128, 128, 0.12) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.12) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.12) 75%);
+            background-size: 16px 16px;
+            background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            padding: 20px;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+            touch-action: none;
+            user-select: none;
+        }
+        #canvas-cover-modal-preview {
+            display: block;
             max-width: 100%;
             max-height: 100%;
-            width: 100%;
-            height: 100%;
-            border-radius: 0;
-            box-shadow: none;
+            border-radius: 6px;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.12);
+            object-fit: contain;
+            transition: box-shadow 0.2s ease;
         }
+        .cover-editor-controls-panel {
+            width: 320px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            padding-right: 6px;
+            overscroll-behavior: contain;
+            scrollbar-gutter: stable;
+        }
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #ffffff;
+            background: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            border-color: var(--primary-hover);
+        }
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+        @media (max-width: 768px) {
+            .modal-dialog.cover-editor-dialog {
+                width: 100vw;
+                max-width: 100vw;
+                height: 100%;
+                height: 100dvh;
+                max-height: 100dvh;
+                border-radius: 0;
+                border: none;
+            }
+            .cover-editor-body {
+                flex-direction: column;
+                padding: 10px;
+                gap: 10px;
+            }
+            .cover-editor-stage-wrap {
+                height: 44vh;
+                flex: none;
+                padding: 12px;
+            }
+            .cover-editor-controls-panel {
+                width: 100%;
+                flex: 1;
+            }
+        }
+
+        /* 效果微调控件通用样式 */
+        .slider-combo-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+        .slider-combo-input {
+            flex: 1;
+            height: 6px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .slider-combo-num {
+            width: 54px;
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            text-align: center;
+            outline: none;
+        }
+        .quick-chips-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        .quick-chip {
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-sub);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10.5px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+        }
+        .quick-chip:hover {
+            border-color: var(--primary);
+            color: var(--text-main);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .quick-chip.active {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+        .pos-grid-matrix {
+            display: grid;
+            grid-template-columns: repeat(3, 20px);
+            grid-template-rows: repeat(3, 20px);
+            gap: 3px;
+            background: var(--card-sub-bg);
+            padding: 3px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: fit-content;
+        }
+        .pos-grid-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid transparent;
+            border-radius: 3px;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sub);
+            transition: all 0.15s ease;
+        }
+        .pos-grid-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(59, 130, 246, 0.15);
+        }
+        .pos-grid-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #ffffff;
+        }
+        .pos-grid-dot {
+            width: 5px;
+            height: 5px;
+            background-color: currentColor;
+            border-radius: 50%;
+        }
+
 
         /* 纯色选择器样式 */
         .color-selector-panel {
@@ -1369,7 +1735,7 @@
             font-size: 13px;
         }
 
-        /* 视频时段可视化双端拖拽裁剪模态对话框 */
+        /* 模态对话框遮罩与防滚动穿透容器 */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -1377,12 +1743,14 @@
             right: 0;
             bottom: 0;
             background: rgba(0, 0, 0, 0.75);
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 1000;
             padding: 16px;
+            overscroll-behavior: contain;
         }
         .modal-dialog {
             background: var(--card-bg);
@@ -1394,6 +1762,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            overscroll-behavior: contain;
             transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
         .modal-header {
@@ -2198,16 +2567,16 @@
                             <div class="color-swatch" style="background: #3b82f6;" data-color="#3b82f6" title="经典蓝"></div>
                             <div class="color-swatch" style="background: #f59e0b;" data-color="#f59e0b" title="琥珀黄"></div>
                         </div>
-                        <div id="cover-color-preview" class="color-preview-box" style="background-color: #0f172a; color: #fff;">
-                            封面预览色：#0F172A
-                        </div>
                     </div>
 
                     <!-- 图片封面面板 -->
                     <div id="panel-cover-image" style="display: none;">
                         <div class="upload-card" id="drop-cover">
                             <img id="preview-cover" class="preview-img" alt="封面图预览" />
-                            <div class="upload-hint" id="hint-cover">拖拽封面图片到此，或点击选择</div>
+                            <div class="upload-hint" id="hint-cover">拖拽封面图片到此，点击选择，或直接按 Ctrl+V 粘贴</div>
+                            <div style="margin-top: 8px; display: flex; justify-content: center;">
+                                <button type="button" id="btn-paste-cover" class="btn-clipboard-paste" title="从系统剪贴板读取截图或复制的图片">📋 从剪贴板粘贴</button>
+                            </div>
                             <div id="info-cover" class="file-info"></div>
                             <input type="file" id="input-cover" accept="image/*" />
                         </div>
@@ -2230,122 +2599,6 @@
                         <div class="cover-opacity-slider-wrap">
                             <input type="range" id="input-cover-opacity" class="cover-opacity-slider" min="0" max="100" value="100" step="1" />
                             <span id="label-cover-opacity" class="cover-opacity-val">100%</span>
-                        </div>
-                    </div>
-
-                    <!-- 封面修饰与混淆 -->
-                    <div class="cover-effects-panel" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
-                        <div style="font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                            <span>封面修饰与混淆</span>
-                        </div>
-
-                        <!-- 混淆方式与颗粒度 -->
-                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                            <label for="select-cover-confusion">混淆方式：</label>
-                            <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
-                                <option value="none" selected>无混淆 (原样)</option>
-                                <option value="gilbert">小番茄曲线</option>
-                                <option value="pic_block">块置乱</option>
-                                <option value="pic_row">行置乱</option>
-                                <option value="pic_pixel">像素打乱</option>
-                                <option value="pic_chaos_row">混沌行置乱</option>
-                                <option value="pic_chaos_2d">混沌二维置乱</option>
-                                <option value="pixelate">马赛克</option>
-                                <option value="rgb_split">RGB 色散</option>
-                                <option value="scanline">扫描线</option>
-                                <option value="jigsaw">拼图打乱</option>
-                                <option value="swirl">漩涡扭曲</option>
-                                <option value="halftone">半色调网点</option>
-                                <option value="ascii">ASCII 字符</option>
-                                <option value="edge">轮廓线框</option>
-                                <option value="caution">警戒封条</option>
-                                <option value="invert">色彩反转</option>
-                                <option value="grayscale">黑白灰度</option>
-                                <option value="noise">随机噪点</option>
-                            </select>
-
-                            <div id="box-scramble-key" style="display: none; align-items: center; gap: 4px;">
-                                <label for="input-scramble-key">混淆密钥：</label>
-                                <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或数值" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 110px; outline: none;" />
-                            </div>
-
-                            <div id="box-pixel-size" style="display: none; align-items: center; gap: 4px;">
-                                <label for="select-pixel-size">颗粒度：</label>
-                                <select id="select-pixel-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 12px; outline: none;">
-                                    <option value="8">8px (小)</option>
-                                    <option value="16" selected>16px (中)</option>
-                                    <option value="24">24px (大)</option>
-                                    <option value="36">36px (特大)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- 模糊处理 -->
-                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                            <label for="select-cover-blur">模糊效果：</label>
-                            <select id="select-cover-blur" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
-                                <option value="0" selected>无模糊</option>
-                                <option value="4">轻度 (4px)</option>
-                                <option value="8">中度 (8px)</option>
-                                <option value="16">较强 (16px)</option>
-                                <option value="24">极强 (24px)</option>
-                            </select>
-                        </div>
-
-                        <!-- 自定义文字水印 -->
-                        <div style="display: flex; flex-direction: column; gap: 6px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <label for="input-cover-text">封面文字：</label>
-                                <input type="text" id="input-cover-text" placeholder="例如：点击查看大图 / 剧透预警" style="flex: 1; background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none;" maxlength="30" />
-                            </div>
-                            <div id="box-cover-text-opts" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-left: 64px;">
-                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <label for="select-cover-text-pos">位置：</label>
-                                    <select id="select-cover-text-pos" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                        <option value="center" selected>居中</option>
-                                        <option value="bottom">底部</option>
-                                        <option value="top">顶部</option>
-                                    </select>
-                                </div>
-                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <label for="select-cover-text-size">字号：</label>
-                                    <select id="select-cover-text-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                        <option value="18">小 (18px)</option>
-                                        <option value="24" selected>中 (24px)</option>
-                                        <option value="30">大 (30px)</option>
-                                        <option value="36">特大 (36px)</option>
-                                    </select>
-                                </div>
-                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <label for="select-cover-text-font">字体：</label>
-                                    <select id="select-cover-text-font" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                        <option value="sans" selected>默认黑体</option>
-                                        <option value="serif">优雅宋体</option>
-                                        <option value="kaiti">经典楷体</option>
-                                        <option value="mono">现代等宽</option>
-                                        <option value="impact">粗重标题</option>
-                                        <option value="rounded">软萌圆体</option>
-                                    </select>
-                                </div>
-                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <label for="select-cover-text-bg">背景：</label>
-                                    <select id="select-cover-text-bg" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                        <option value="dark" selected>暗黑微透</option>
-                                        <option value="light">亮白微透</option>
-                                        <option value="yellow">警戒亮黄</option>
-                                        <option value="red">警示鲜红</option>
-                                        <option value="blue">经典科技蓝</option>
-                                        <option value="none">无背景衬底</option>
-                                        <option value="custom">自选色彩...</option>
-                                    </select>
-                                </div>
-                                <div id="box-cover-text-custom-bg" style="display: none; align-items: center; gap: 6px; flex-shrink: 0;">
-                                    <label for="input-cover-text-bg-color" title="衬底颜色" style="font-size: 11px;">底色:</label>
-                                    <input type="color" id="input-cover-text-bg-color" value="#000000" style="width: 22px; height: 22px; padding: 0; border: 1px solid var(--border-color); border-radius: 4px; background: none; cursor: pointer;" />
-                                    <label for="input-cover-text-color" title="文字颜色" style="font-size: 11px;">字色:</label>
-                                    <input type="color" id="input-cover-text-color" value="#ffffff" style="width: 22px; height: 22px; padding: 0; border: 1px solid var(--border-color); border-radius: 4px; background: none; cursor: pointer;" />
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -2402,6 +2655,10 @@
                     </div>
                     <div id="cover-preview-stage" class="cover-preview-stage">
                         <canvas id="canvas-cover-live-preview" class="cover-preview-canvas"></canvas>
+                        <!-- 悬浮在右下角的大画幅/全屏编辑触发按钮 -->
+                        <button type="button" id="btn-open-cover-editor" class="btn-open-cover-editor" title="放大并在大画幅中精细编辑封面">
+                            <span>⛶ 放大编辑</span>
+                        </button>
                     </div>
                 </div>
 
@@ -2416,7 +2673,10 @@
                     <div class="upload-card" id="drop-hidden" style="min-height: 110px; padding: 14px;">
                         <span class="upload-plus-icon">+</span>
                         <div id="upload-hidden-title" class="upload-main-text" style="font-size: 14.5px; font-weight: 600;">点击或拖拽添加图片、动图或视频</div>
-                        <div class="upload-hint">动图与视频导入后支持自由裁剪时段与调整帧率</div>
+                        <div class="upload-hint">支持拖拽、点击选择或直接按 Ctrl+V 粘贴图片，动图与视频导入后支持自由裁剪</div>
+                        <div style="margin-top: 8px; display: flex; justify-content: center;">
+                            <button type="button" id="btn-paste-hidden" class="btn-clipboard-paste" title="从系统剪贴板读取截图或复制的图片追加至隐藏帧">📋 从剪贴板粘贴</button>
+                        </div>
                         <input type="file" id="input-hidden" multiple accept="image/*,video/*" />
                     </div>
 
@@ -2509,6 +2769,177 @@
         </div>
         <div id="history-list" class="history-list">
             <div class="empty-history">暂无制作历史记录</div>
+        </div>
+    </div>
+
+    <!-- 沉浸式大画幅封面编辑模态框 (电脑宽屏工作台 + 手机全屏) -->
+    <div id="modal-cover-editor" class="modal-overlay">
+        <div class="modal-dialog cover-editor-dialog">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <h3 id="cover-editor-modal-title">封面大画幅精修与水印</h3>
+                    <span style="font-size: 11px; color: var(--text-sub); padding: 2px 6px; background: var(--card-sub-bg); border-radius: 4px;">所见即所得</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="btn-cover-editor-done" class="btn-primary" type="button">完成</button>
+                    <button id="btn-cover-editor-close" class="modal-close" type="button" title="关闭 (Esc)">×</button>
+                </div>
+            </div>
+            <div class="cover-editor-body">
+                <!-- 左侧/上半部分：大画幅交互画布舞台 -->
+                <div id="cover-modal-stage" class="cover-editor-stage-wrap">
+                    <canvas id="canvas-cover-modal-preview"></canvas>
+                    <!-- 大画幅图内交互变换控制器 -->
+                    <div id="cover-modal-transformer" class="cover-text-transformer" style="display: none;">
+                        <div class="transformer-rotator" id="modal-transformer-rotator" title="按住拖拽任意角度旋转（双击重置为水平，按Shift步进吸附）">
+                            <div class="rotator-line"></div>
+                            <div class="rotator-handle"></div>
+                        </div>
+                        <div class="transformer-handle handle-nw" data-handle="nw" title="按住等比缩放"></div>
+                        <div class="transformer-handle handle-ne" data-handle="ne" title="按住等比缩放"></div>
+                        <div class="transformer-handle handle-se" data-handle="se" title="按住等比缩放"></div>
+                        <div class="transformer-handle handle-sw" data-handle="sw" title="按住等比缩放"></div>
+                    </div>
+                </div>
+
+                <!-- 右侧/下半部分：滚动修饰控制面板 -->
+                <div class="cover-editor-controls-panel">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 6px;">
+                        <span style="font-size: 12px; font-weight: 600; color: var(--text-main);">修饰特效与文字水印</span>
+                        <button type="button" id="btn-modal-paste-cover" class="btn-clipboard-paste" title="从系统剪贴板读取截图或复制的图片替换封面">📋 粘贴新封面</button>
+                    </div>
+
+                    <!-- 混淆方式 -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                            <label for="select-cover-confusion" style="font-size: 12px; white-space: nowrap;">混淆效果：</label>
+                            <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none; flex: 1; max-width: 190px;">
+                                <option value="none" selected>无混淆 (原样)</option>
+                                <option value="gilbert">小番茄曲线</option>
+                                <option value="pic_block">块置乱</option>
+                                <option value="pic_row">行置乱</option>
+                                <option value="pic_pixel">像素打乱</option>
+                                <option value="pic_chaos_row">混沌行置乱</option>
+                                <option value="pic_chaos_2d">混沌二维置乱</option>
+                                <option value="pixelate">马赛克</option>
+                                <option value="rgb_split">RGB 色散</option>
+                                <option value="scanline">扫描线</option>
+                                <option value="jigsaw">拼图打乱</option>
+                                <option value="swirl">漩涡扭曲</option>
+                                <option value="halftone">半色调网点</option>
+                                <option value="ascii">ASCII 字符</option>
+                                <option value="edge">轮廓线框</option>
+                                <option value="caution">警戒封条</option>
+                                <option value="invert">色彩反转</option>
+                                <option value="grayscale">黑白灰度</option>
+                                <option value="noise">随机噪点</option>
+                            </select>
+                        </div>
+                        <div id="box-scramble-key" style="display: none; align-items: center; justify-content: space-between; gap: 4px;">
+                            <label for="input-scramble-key" style="font-size: 11px; color: var(--text-sub); white-space: nowrap;">混淆密钥：</label>
+                            <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或数值" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; width: 140px; outline: none;" />
+                        </div>
+                        <div id="box-pixel-size" style="display: none; align-items: center; justify-content: space-between; gap: 4px;">
+                            <label for="select-pixel-size" style="font-size: 11px; color: var(--text-sub); white-space: nowrap;">颗粒度：</label>
+                            <select id="select-pixel-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
+                                <option value="8">8px (小)</option>
+                                <option value="16" selected>16px (中)</option>
+                                <option value="24">24px (大)</option>
+                                <option value="36">36px (特大)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 模糊处理 (单行) -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label for="input-cover-blur" style="font-size: 12px;">背景模糊：</label>
+                        <div class="slider-combo-row">
+                            <input type="range" id="input-cover-blur" class="slider-combo-input" min="0" max="120" value="0" step="1" />
+                            <input type="number" id="input-cover-blur-num" class="slider-combo-num" min="0" max="300" value="0" />
+                            <span style="font-size: 11px; color: var(--text-sub);">px</span>
+                        </div>
+                    </div>
+
+                    <!-- 水印文字内容 -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <label for="input-cover-text" style="font-size: 12px;">水印文字：</label>
+                            <div class="quick-chips-wrap" id="cover-quick-text-chips" style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <button type="button" class="quick-chip" data-quick-text="点击查看大图" style="font-size: 10.5px; padding: 1px 5px;">查看大图</button>
+                                <button type="button" class="quick-chip" data-quick-text="剧透预警" style="font-size: 10.5px; padding: 1px 5px;">剧透预警</button>
+                                <button type="button" class="quick-chip" data-quick-text="" style="font-size: 10.5px; padding: 1px 5px;">清空</button>
+                            </div>
+                        </div>
+                        <input type="text" id="input-cover-text" placeholder="例如：点击查看大图 / 剧透预警" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 6px 8px; border-radius: 4px; font-size: 12px; outline: none;" maxlength="40" />
+                    </div>
+
+                    <!-- 字号控制 (单行) -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <label for="input-cover-text-size" style="font-size: 12px;">文字字号：</label>
+                        <div class="slider-combo-row">
+                            <input type="range" id="input-cover-text-size" class="slider-combo-input" min="10" max="400" value="48" step="1" />
+                            <input type="number" id="input-cover-text-size-num" class="slider-combo-num" min="8" max="1000" value="48" />
+                            <span style="font-size: 11px; color: var(--text-sub);">px</span>
+                        </div>
+                    </div>
+
+                    <!-- 旋转角度控制 (单行) -->
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <label for="input-cover-text-rotate" style="font-size: 12px;">旋转角度：</label>
+                            <button type="button" id="btn-rotate-reset" class="quick-chip" style="padding: 1px 8px; font-size: 11px;" title="一键重置为水平 0°">水平 0°</button>
+                        </div>
+                        <div class="slider-combo-row">
+                            <input type="range" id="input-cover-text-rotate" class="slider-combo-input" min="-180" max="180" value="0" step="1" />
+                            <input type="number" id="input-cover-text-rotate-num" class="slider-combo-num" min="-180" max="180" value="0" />
+                            <span style="font-size: 11px; color: var(--text-sub);">°</span>
+                        </div>
+                    </div>
+
+                    <!-- 字体风格与背景衬底 -->
+                    <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                            <label for="select-cover-text-font" style="font-size: 11px; color: var(--text-sub); white-space: nowrap;">字体：</label>
+                            <select id="select-cover-text-font" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 11px; outline: none; flex: 1;">
+                                <option value="sans" selected>默认黑体</option>
+                                <option value="serif">优雅宋体</option>
+                                <option value="kaiti">经典楷体</option>
+                                <option value="mono">现代等宽</option>
+                                <option value="impact">粗重标题</option>
+                                <option value="rounded">软萌圆体</option>
+                            </select>
+                        </div>
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                            <label for="select-cover-text-bg" style="font-size: 11px; color: var(--text-sub); white-space: nowrap;">衬底：</label>
+                            <select id="select-cover-text-bg" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 11px; outline: none; flex: 1;">
+                                <option value="dark" selected>暗黑微透</option>
+                                <option value="light">亮白微透</option>
+                                <option value="yellow">警戒亮黄</option>
+                                <option value="red">警示鲜红</option>
+                                <option value="blue">经典科技蓝</option>
+                                <option value="none">无背景衬底</option>
+                                <option value="custom">自选色彩...</option>
+                            </select>
+                        </div>
+
+                        <div id="box-cover-text-custom-bg" style="display: none; align-items: center; justify-content: space-between; gap: 6px;">
+                            <span style="font-size: 11px; color: var(--text-sub);">配色:</span>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <label for="input-cover-text-bg-color" title="衬底颜色" style="font-size: 11px;">底色:</label>
+                                <input type="color" id="input-cover-text-bg-color" value="#000000" style="width: 22px; height: 22px; padding: 0; border: 1px solid var(--border-color); border-radius: 4px; background: none; cursor: pointer;" />
+                                <label for="input-cover-text-color" title="文字颜色" style="font-size: 11px;">字色:</label>
+                                <input type="color" id="input-cover-text-color" value="#ffffff" style="width: 22px; height: 22px; padding: 0; border: 1px solid var(--border-color); border-radius: 4px; background: none; cursor: pointer;" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作指引提示 -->
+                    <div style="margin-top: auto; padding: 8px 10px; background: rgba(59, 130, 246, 0.08); border: 1px dashed rgba(59, 130, 246, 0.3); border-radius: 6px; font-size: 11px; color: var(--text-sub); line-height: 1.5;">
+                        💡 提示：在左侧大画幅中，按住文字可任意平移，拖拽四角手柄等比缩放，拖拽顶部手柄自由旋转。
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2646,13 +3077,21 @@
             scrambleKey: 'PicEncrypt',
             blurRadius: 0,
             text: '',
-            textPosition: 'center', // 'center' | 'bottom' | 'top'
-            textSize: 24,
+            textX: 50, // 水平百分比位置 (0% ~ 100%)
+            textY: 50, // 垂直百分比位置 (0% ~ 100%)
+            textSize: 48, // 实际渲染字号 (px)，支持无上限拖拽与输入
+            textRotate: 0, // 旋转角度 (-180° ~ 180°)
             textFont: 'sans', // 'sans' | 'serif' | 'kaiti' | 'mono' | 'impact' | 'rounded'
             textBg: 'dark', // 'dark' | 'light' | 'yellow' | 'red' | 'blue' | 'none' | 'custom'
             customTextBgColor: '#000000',
             customTextColor: '#ffffff'
         };
+
+        /**
+         * 当前封面文字绘制元数据，用于在预览舞台上驱动 DOM 变换框对齐与几何响应。
+         * @type {null|{canvasWidth: number, canvasHeight: number, posX: number, posY: number, pillW: number, pillH: number, fontSize: number, rotateDeg: number}}
+         */
+        let currentCoverTextRenderMeta = null;
 
         /**
          * 纯色封面当前颜色值。若为 'TRANSPARENT' 则代表透明色。
@@ -3978,7 +4417,7 @@
             // 3. 自定义文字水印覆盖
             if (coverEffectsConfig.text && coverEffectsConfig.text.trim().length > 0) {
                 const text = coverEffectsConfig.text.trim();
-                const fontSize = coverEffectsConfig.textSize || 24;
+                const fontSize = Math.max(8, Math.round(coverEffectsConfig.textSize || 48));
                 const fontKey = coverEffectsConfig.textFont || 'sans';
                 const fontFamily = COVER_FONT_FAMILY_MAP[fontKey] || COVER_FONT_FAMILY_MAP.sans;
 
@@ -3989,17 +4428,32 @@
 
                 const textMetrics = ctx.measureText(text);
                 const textW = textMetrics.width;
-                const paddingX = 16;
-                const paddingY = 8;
+                const paddingX = Math.max(8, fontSize * 0.4);
+                const paddingY = Math.max(4, fontSize * 0.25);
                 const pillW = textW + paddingX * 2;
                 const pillH = fontSize + paddingY * 2;
 
-                let posX = width / 2;
-                let posY = height / 2;
-                if (coverEffectsConfig.textPosition === 'top') {
-                    posY = Math.max(pillH / 2 + 12, height * 0.15);
-                } else if (coverEffectsConfig.textPosition === 'bottom') {
-                    posY = Math.min(height - pillH / 2 - 12, height * 0.85);
+                const posX = (width * (coverEffectsConfig.textX ?? 50)) / 100;
+                const posY = (height * (coverEffectsConfig.textY ?? 50)) / 100;
+                const rotateDeg = Number(coverEffectsConfig.textRotate) || 0;
+                const rotateRad = (rotateDeg * Math.PI) / 180;
+
+                // 记录绘制元数据（用于在预览舞台上驱动 DOM 变换框对齐与几何响应）
+                currentCoverTextRenderMeta = {
+                    canvasWidth: width,
+                    canvasHeight: height,
+                    posX: posX,
+                    posY: posY,
+                    pillW: pillW,
+                    pillH: pillH,
+                    fontSize: fontSize,
+                    rotateDeg: rotateDeg
+                };
+
+                // 应用中心矩阵平移与旋转
+                ctx.translate(posX, posY);
+                if (rotateRad !== 0) {
+                    ctx.rotate(rotateRad);
                 }
 
                 const bgStyle = coverEffectsConfig.textBg || 'dark';
@@ -4008,14 +4462,14 @@
                 let borderColor = "rgba(255, 255, 255, 0.25)";
                 let textColor = "#ffffff";
                 let shadowColor = "rgba(0, 0, 0, 0.8)";
-                let shadowBlur = 4;
+                let shadowBlur = Math.max(2, Math.round(fontSize * 0.1));
 
                 if (bgStyle === 'light') {
                     bgColor = "rgba(255, 255, 255, 0.88)";
                     borderColor = "rgba(0, 0, 0, 0.15)";
                     textColor = "#0f172a";
                     shadowColor = "rgba(255, 255, 255, 0.6)";
-                    shadowBlur = 2;
+                    shadowBlur = Math.max(1, Math.round(fontSize * 0.06));
                 } else if (bgStyle === 'yellow') {
                     bgColor = "rgba(245, 158, 11, 0.92)";
                     borderColor = "rgba(0, 0, 0, 0.2)";
@@ -4027,31 +4481,31 @@
                     borderColor = "rgba(255, 255, 255, 0.3)";
                     textColor = "#ffffff";
                     shadowColor = "rgba(0, 0, 0, 0.6)";
-                    shadowBlur = 4;
+                    shadowBlur = Math.max(2, Math.round(fontSize * 0.1));
                 } else if (bgStyle === 'blue') {
                     bgColor = "rgba(37, 99, 235, 0.92)";
                     borderColor = "rgba(255, 255, 255, 0.3)";
                     textColor = "#ffffff";
                     shadowColor = "rgba(0, 0, 0, 0.6)";
-                    shadowBlur = 4;
+                    shadowBlur = Math.max(2, Math.round(fontSize * 0.1));
                 } else if (bgStyle === 'none') {
                     hasBg = false;
                     textColor = "#ffffff";
                     shadowColor = "rgba(0, 0, 0, 0.95)";
-                    shadowBlur = 6;
+                    shadowBlur = Math.max(3, Math.round(fontSize * 0.15));
                 } else if (bgStyle === 'custom') {
                     bgColor = coverEffectsConfig.customTextBgColor || "#000000";
                     borderColor = "rgba(255, 255, 255, 0.25)";
                     textColor = coverEffectsConfig.customTextColor || "#ffffff";
                     shadowColor = "rgba(0, 0, 0, 0.7)";
-                    shadowBlur = 4;
+                    shadowBlur = Math.max(2, Math.round(fontSize * 0.1));
                 }
 
                 if (hasBg) {
                     ctx.fillStyle = bgColor;
-                    const pillX = posX - pillW / 2;
-                    const pillY = posY - pillH / 2;
-                    const radius = 6;
+                    const pillX = -pillW / 2;
+                    const pillY = -pillH / 2;
+                    const radius = Math.max(4, Math.round(fontSize * 0.2));
                     ctx.beginPath();
                     if (typeof ctx.roundRect === "function") {
                         ctx.roundRect(pillX, pillY, pillW, pillH, radius);
@@ -4061,18 +4515,20 @@
                     ctx.fill();
 
                     ctx.strokeStyle = borderColor;
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = Math.max(1, Math.round(fontSize * 0.04));
                     ctx.stroke();
                 }
 
-                // 绘制文字内容
+                // 绘制文字内容（以 (0, 0) 为原点居中）
                 ctx.fillStyle = textColor;
                 ctx.shadowColor = shadowColor;
                 ctx.shadowBlur = shadowBlur;
                 ctx.shadowOffsetX = 0;
-                ctx.shadowOffsetY = 1;
-                ctx.fillText(text, posX, posY);
+                ctx.shadowOffsetY = Math.max(1, Math.round(fontSize * 0.04));
+                ctx.fillText(text, 0, 0);
                 ctx.restore();
+            } else {
+                currentCoverTextRenderMeta = null;
             }
         }
 
@@ -4142,9 +4598,9 @@
             const preset = presetSelect ? presetSelect.value : currentResPreset;
 
             // 获取当前所选输出模式或帧的目标长宽比
-            let targetW = 320;
-            let targetH = 180;
-            let ratioLabel = "16:9 标清";
+            let targetW = 1280;
+            let targetH = 720;
+            let ratioLabel = "16:9 (自适应)";
 
             if (preset === 'preset_1080p') {
                 targetW = 1920; targetH = 1080; ratioLabel = "1080P (1920×1080)";
@@ -4165,8 +4621,8 @@
                 targetH = hiddenFrames[0].height;
                 ratioLabel = `原图 ${targetW} × ${targetH}`;
             } else if (currentCoverMode === 'image' && coverImageState.img) {
-                targetW = coverImageState.width || 320;
-                targetH = coverImageState.height || 180;
+                targetW = coverImageState.width || 1280;
+                targetH = coverImageState.height || 720;
                 ratioLabel = `图片 ${targetW} × ${targetH}`;
             }
 
@@ -4174,21 +4630,17 @@
                 badge.textContent = ratioLabel;
             }
 
-            // 纯色封面且未设置文字/模糊/复杂混淆时，使用自然满铺，消除一切被黑边夹逼感
-            const isPlainColor = (
-                currentCoverMode === 'color' &&
-                coverEffectsConfig.confusion === 'none' &&
-                coverEffectsConfig.blurRadius === 0 &&
-                (!coverEffectsConfig.text || !coverEffectsConfig.text.trim())
-            );
+            // 主界面封面预览画板统一依据真实输出比例自适应呈现
+            renderCoverToCanvas(previewCanvas, targetW, targetH, 'cover-fit');
 
-            if (isPlainColor) {
-                previewCanvas.classList.add("fill-stage");
-                renderCoverToCanvas(previewCanvas, 320, 120, 'cover-fit');
-            } else {
-                previewCanvas.classList.remove("fill-stage");
-                renderCoverToCanvas(previewCanvas, targetW, targetH, 'cover-fit');
+            // 若大画幅封面编辑模态框打开，同步以完全一致的目标规格渲染大画幅画布
+            const modal = document.getElementById("modal-cover-editor");
+            const modalCanvas = document.getElementById("canvas-cover-modal-preview");
+            if (modal && modal.style.display !== "none" && modalCanvas) {
+                renderCoverToCanvas(modalCanvas, targetW, targetH, 'cover-fit');
             }
+
+            syncCoverTextTransformer();
         }
 
         /**
@@ -4647,32 +5099,17 @@
          */
         function updateCoverColor(colorValue) {
             const isTransparent = (colorValue.toLowerCase() === 'transparent');
-            const preview = document.getElementById("cover-color-preview");
             const inputHex = document.getElementById("input-cover-hex");
 
             if (isTransparent) {
                 currentCoverColor = 'TRANSPARENT';
                 if (inputHex) inputHex.value = "TRANSPARENT";
-                if (preview) {
-                    preview.style.backgroundColor = "transparent";
-                    preview.textContent = "封面预览色：透明色 (0%)";
-                    preview.style.color = "var(--text-main)";
-                }
                 updateCoverOpacity(0, false);
             } else {
                 currentCoverColor = colorValue.toUpperCase();
                 const inputColor = document.getElementById("input-cover-color");
                 if (inputColor) inputColor.value = colorValue;
                 if (inputHex) inputHex.value = currentCoverColor;
-                if (preview) {
-                    preview.style.backgroundColor = colorValue;
-                    preview.textContent = `封面预览色：${currentCoverColor}`;
-                    const r = parseInt(currentCoverColor.slice(1, 3), 16) || 0;
-                    const g = parseInt(currentCoverColor.slice(3, 5), 16) || 0;
-                    const b = parseInt(currentCoverColor.slice(5, 7), 16) || 0;
-                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                    preview.style.color = brightness > 128 ? '#000000' : '#ffffff';
-                }
                 if (currentCoverOpacity === 0) {
                     updateCoverOpacity(100, false);
                 }
@@ -4800,6 +5237,58 @@
         }
 
         /**
+         * 处理选定、拖拽或剪贴板粘贴的封面图片文件并更新封面状态与实时预览。
+         *
+         * @param {File} file - 用户选择或粘贴的图像文件。
+         * @returns {Promise<void>}
+         * @see Callers:
+         *  - `setupCoverImageUpload.dropZone.ondrop`
+         *  - `setupCoverImageUpload.fileInput.onchange`
+         *  - `setupClipboardPaste`: 剪贴板粘贴图片至封面时调用。
+         */
+        async function processCoverFile(file) {
+            const previewImg = document.getElementById("preview-cover");
+            const hintText = document.getElementById("hint-cover");
+            const infoDiv = document.getElementById("info-cover");
+
+            const detected = await detectMediaFileType(file);
+            if (detected.category !== 'image' && detected.category !== 'animated_image') {
+                showError("请选择有效的图片文件格式作为封面（支持 PNG、JPEG、GIF、WebP 等）。");
+                return;
+            }
+            const imageMime = detected.mime || file.type || "image/png";
+            const cleanBlob = (file.type === imageMime) ? file : new Blob([file], { type: imageMime });
+            const blobUrl = URL.createObjectURL(cleanBlob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(blobUrl);
+                coverImageState.img = img;
+                coverImageState.file = file;
+                coverImageState.width = img.naturalWidth;
+                coverImageState.height = img.naturalHeight;
+
+                if (previewImg) {
+                    previewImg.src = img.src;
+                    previewImg.style.display = "block";
+                }
+                if (hintText) hintText.style.display = "none";
+                if (infoDiv) {
+                    infoDiv.style.display = "block";
+                    infoDiv.textContent = `${file.name || '剪贴板图片'} [识别格式: ${detected.formatLabel}] (${img.naturalWidth} × ${img.naturalHeight})`;
+                }
+
+                updateCoverLivePreview();
+                checkReadyState();
+                showToast(`封面成功识别为 ${detected.formatLabel} 并载入`, "success");
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(blobUrl);
+                showError(`无法解码封面图片: ${file.name || '未知文件'}`);
+            };
+            img.src = blobUrl;
+        }
+
+        /**
          * 初始化封面图片拖拽及文件选择器事件监听。
          *
          * @returns {void}
@@ -4809,9 +5298,8 @@
         function setupCoverImageUpload() {
             const dropZone = document.getElementById("drop-cover");
             const fileInput = document.getElementById("input-cover");
-            const previewImg = document.getElementById("preview-cover");
-            const hintText = document.getElementById("hint-cover");
-            const infoDiv = document.getElementById("info-cover");
+
+            if (!dropZone || !fileInput) return;
 
             dropZone.addEventListener("click", () => fileInput.click());
 
@@ -4837,49 +5325,6 @@
                     processCoverFile(e.target.files[0]);
                 }
             });
-
-            /**
-             * 处理选定或拖拽的封面图片文件并更新封面状态与实时预览。
-             *
-             * @param {File} file - 用户选择的图像文件。
-             * @returns {void}
-             * @see Callers:
-             *  - `setupCoverImageUpload.dropZone.ondrop`
-             *  - `setupCoverImageUpload.fileInput.onchange`
-             */
-            async function processCoverFile(file) {
-                const detected = await detectMediaFileType(file);
-                if (detected.category !== 'image' && detected.category !== 'animated_image') {
-                    showError("请选择有效的图片文件格式作为封面（支持 PNG、JPEG、GIF、WebP 等）。");
-                    return;
-                }
-                const imageMime = detected.mime || file.type || "image/png";
-                const cleanBlob = (file.type === imageMime) ? file : new Blob([file], { type: imageMime });
-                const blobUrl = URL.createObjectURL(cleanBlob);
-                const img = new Image();
-                img.onload = () => {
-                    URL.revokeObjectURL(blobUrl);
-                    coverImageState.img = img;
-                    coverImageState.file = file;
-                    coverImageState.width = img.naturalWidth;
-                    coverImageState.height = img.naturalHeight;
-
-                    previewImg.src = img.src;
-                    previewImg.style.display = "block";
-                    hintText.style.display = "none";
-                    infoDiv.style.display = "block";
-                    infoDiv.textContent = `${file.name} [识别格式: ${detected.formatLabel}] (${img.naturalWidth} × ${img.naturalHeight})`;
-
-                    updateCoverLivePreview();
-                    checkReadyState();
-                    showToast(`封面成功识别为 ${detected.formatLabel} 并载入`, "success");
-                };
-                img.onerror = () => {
-                    URL.revokeObjectURL(blobUrl);
-                    showError(`无法解码封面图片: ${file.name}`);
-                };
-                img.src = blobUrl;
-            }
         }
 
         /**
@@ -4889,6 +5334,295 @@
          * @see Callers:
          *  - `window.DOMContentLoaded`
          */
+        /**
+         * 将封面文字图内变换控制器（Transformer Overlay）对齐至预览 Canvas 当前真实的可视位置。
+         *
+         * 基于 Canvas 的 CSS 渲染盒与内部物理渲染分辨率的比例关系，
+         * 精确计算出文字中心在预览容器内的相对位置与几何尺寸，并同步旋转角度与展示状态。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `updateCoverLivePreview`: 画布重新渲染后同步调用。
+         *  - `setupCoverTextTransformer`: 手势初始化及窗口尺寸变化时调用。
+         */
+        /**
+         * 将封面文字图内变换控制器（Transformer Overlay）对齐至目标舞台 Canvas 当前真实的可视位置。
+         *
+         * 基于 Canvas 的 CSS 渲染盒与内部物理渲染分辨率的比例关系，
+         * 精确计算出文字中心在预览容器内的相对位置与几何尺寸，并同步旋转角度与展示状态。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `updateCoverLivePreview`: 画布重新渲染后同步调用。
+         *  - `setupCoverTextTransformer`: 手势初始化及窗口尺寸变化时调用。
+         *  - `openCoverEditorModal`: 模态框打开时定位。
+         */
+        function syncCoverTextTransformer() {
+            const modal = document.getElementById("modal-cover-editor");
+            if (!modal || modal.style.display === "none") return;
+
+            const transformer = document.getElementById("cover-modal-transformer");
+            const canvas = document.getElementById("canvas-cover-modal-preview");
+            const stage = document.getElementById("cover-modal-stage");
+
+            if (!transformer || !canvas || !stage) return;
+
+            // 若无文字或未生成有效绘制元数据，则隐藏变换器
+            if (!coverEffectsConfig.text || !coverEffectsConfig.text.trim() || !currentCoverTextRenderMeta) {
+                transformer.style.display = "none";
+                return;
+            }
+
+            const stageRect = stage.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            const meta = currentCoverTextRenderMeta;
+
+            if (meta.canvasWidth <= 0 || meta.canvasHeight <= 0 || canvasRect.width <= 0 || canvasRect.height <= 0) {
+                transformer.style.display = "none";
+                return;
+            }
+
+            const scaleX = canvasRect.width / meta.canvasWidth;
+            const scaleY = canvasRect.height / meta.canvasHeight;
+
+            // 计算文字中心在 stage 容器中的像素坐标
+            const screenCenterX = (canvasRect.left - stageRect.left) + (meta.posX * scaleX);
+            const screenCenterY = (canvasRect.top - stageRect.top) + (meta.posY * scaleY);
+            const screenW = Math.max(16, meta.pillW * scaleX);
+            const screenH = Math.max(12, meta.pillH * scaleY);
+
+            transformer.style.left = `${screenCenterX}px`;
+            transformer.style.top = `${screenCenterY}px`;
+            transformer.style.width = `${screenW}px`;
+            transformer.style.height = `${screenH}px`;
+            transformer.style.transform = `translate(-50%, -50%) rotate(${meta.rotateDeg}deg)`;
+            transformer.style.display = "block";
+        }
+
+        /**
+         * 将当前 coverEffectsConfig 状态同步更新到左侧控制面板的字号与旋转数值输入框中。
+         *
+         * 用于图内手势交互（平移、缩放、旋转）触发配置变更时，实时保持控制面板与图内状态一致。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `setupCoverTextTransformer`: 在拖拽平移、四角缩放或旋转摇杆操作中实时回调。
+         */
+        function updateCoverTextPanelControls() {
+            // 字号同步
+            const inputSize = document.getElementById("input-cover-text-size");
+            const inputSizeNum = document.getElementById("input-cover-text-size-num");
+            if (inputSize && inputSizeNum) {
+                inputSize.value = Math.min(400, coverEffectsConfig.textSize);
+                inputSizeNum.value = coverEffectsConfig.textSize;
+            }
+
+            // 旋转同步
+            const inputRotate = document.getElementById("input-cover-text-rotate");
+            const inputRotateNum = document.getElementById("input-cover-text-rotate-num");
+            if (inputRotate && inputRotateNum) {
+                inputRotate.value = coverEffectsConfig.textRotate;
+                inputRotateNum.value = coverEffectsConfig.textRotate;
+            }
+        }
+
+        /**
+         * 为指定的变换器与画布绑定平移拖拽、四角等比缩放与顶部旋转手势系统。
+         *
+         * @param {HTMLElement} transformer - 变换控制器容器元素。
+         * @param {HTMLCanvasElement} canvas - 对应的预览渲染画布元素。
+         * @param {HTMLElement} rotator - 旋转摇杆手柄元素。
+         * @returns {void}
+         * @see Callers:
+         *  - `setupCoverTextTransformer`
+         */
+        function bindTransformerInteractions(transformer, canvas, rotator) {
+            if (!transformer || !canvas) return;
+
+            // 1. 拖拽平移主体
+            let isDragging = false;
+            let startPointerX = 0;
+            let startPointerY = 0;
+            let startTextX = 50;
+            let startTextY = 50;
+
+            transformer.addEventListener("pointerdown", (e) => {
+                if (e.target.closest(".transformer-handle") || e.target.closest(".transformer-rotator")) {
+                    return;
+                }
+                isDragging = true;
+                startPointerX = e.clientX;
+                startPointerY = e.clientY;
+                startTextX = coverEffectsConfig.textX;
+                startTextY = coverEffectsConfig.textY;
+                transformer.setPointerCapture(e.pointerId);
+                e.preventDefault();
+            });
+
+            transformer.addEventListener("pointermove", (e) => {
+                if (!isDragging) return;
+                const canvasRect = canvas.getBoundingClientRect();
+                if (canvasRect.width <= 0 || canvasRect.height <= 0) return;
+
+                const dx = e.clientX - startPointerX;
+                const dy = e.clientY - startPointerY;
+
+                const dPercentX = (dx / canvasRect.width) * 100;
+                const dPercentY = (dy / canvasRect.height) * 100;
+
+                coverEffectsConfig.textX = Math.max(0, Math.min(100, Math.round((startTextX + dPercentX) * 10) / 10));
+                coverEffectsConfig.textY = Math.max(0, Math.min(100, Math.round((startTextY + dPercentY) * 10) / 10));
+
+                updateCoverTextPanelControls();
+                updateCoverLivePreview();
+            });
+
+            const onDragEnd = (e) => {
+                if (isDragging) {
+                    isDragging = false;
+                    if (typeof transformer.hasPointerCapture === "function" && transformer.hasPointerCapture(e.pointerId)) {
+                        transformer.releasePointerCapture(e.pointerId);
+                    }
+                }
+            };
+            transformer.addEventListener("pointerup", onDragEnd);
+            transformer.addEventListener("pointercancel", onDragEnd);
+
+            // 2. 四角拉伸等比缩放手柄
+            transformer.querySelectorAll(".transformer-handle").forEach(handle => {
+                let isScaling = false;
+                let centerScreenX = 0;
+                let centerScreenY = 0;
+                let initialDist = 1;
+                let initialFontSize = 48;
+
+                handle.addEventListener("pointerdown", (e) => {
+                    e.stopPropagation();
+                    isScaling = true;
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const meta = currentCoverTextRenderMeta;
+                    if (!meta) return;
+
+                    const scaleX = canvasRect.width / meta.canvasWidth;
+                    const scaleY = canvasRect.height / meta.canvasHeight;
+                    centerScreenX = canvasRect.left + (meta.posX * scaleX);
+                    centerScreenY = canvasRect.top + (meta.posY * scaleY);
+
+                    initialDist = Math.hypot(e.clientX - centerScreenX, e.clientY - centerScreenY);
+                    initialFontSize = coverEffectsConfig.textSize || 48;
+                    handle.setPointerCapture(e.pointerId);
+                    e.preventDefault();
+                });
+
+                handle.addEventListener("pointermove", (e) => {
+                    if (!isScaling) return;
+                    const currentDist = Math.hypot(e.clientX - centerScreenX, e.clientY - centerScreenY);
+                    const ratio = currentDist / Math.max(5, initialDist);
+                    const computedSize = Math.max(10, Math.round(initialFontSize * ratio));
+
+                    coverEffectsConfig.textSize = computedSize;
+                    updateCoverTextPanelControls();
+                    updateCoverLivePreview();
+                });
+
+                const onScaleEnd = (e) => {
+                    if (isScaling) {
+                        isScaling = false;
+                        if (typeof handle.hasPointerCapture === "function" && handle.hasPointerCapture(e.pointerId)) {
+                            handle.releasePointerCapture(e.pointerId);
+                        }
+                    }
+                };
+                handle.addEventListener("pointerup", onScaleEnd);
+                handle.addEventListener("pointercancel", onScaleEnd);
+            });
+
+            // 3. 顶部旋转摇杆
+            if (rotator) {
+                let isRotating = false;
+                let centerScreenX = 0;
+                let centerScreenY = 0;
+
+                rotator.addEventListener("pointerdown", (e) => {
+                    e.stopPropagation();
+                    isRotating = true;
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const meta = currentCoverTextRenderMeta;
+                    if (!meta) return;
+
+                    const scaleX = canvasRect.width / meta.canvasWidth;
+                    const scaleY = canvasRect.height / meta.canvasHeight;
+                    centerScreenX = canvasRect.left + (meta.posX * scaleX);
+                    centerScreenY = canvasRect.top + (meta.posY * scaleY);
+
+                    rotator.setPointerCapture(e.pointerId);
+                    e.preventDefault();
+                });
+
+                rotator.addEventListener("pointermove", (e) => {
+                    if (!isRotating) return;
+                    const angleRad = Math.atan2(e.clientY - centerScreenY, e.clientX - centerScreenX);
+                    let deg = Math.round((angleRad * 180 / Math.PI) + 90);
+                    while (deg > 180) deg -= 360;
+                    while (deg < -180) deg += 360;
+
+                    if (e.shiftKey) {
+                        deg = Math.round(deg / 15) * 15;
+                    }
+
+                    coverEffectsConfig.textRotate = deg;
+                    updateCoverTextPanelControls();
+                    updateCoverLivePreview();
+                });
+
+                const onRotateEnd = (e) => {
+                    if (isRotating) {
+                        isRotating = false;
+                        if (typeof rotator.hasPointerCapture === "function" && rotator.hasPointerCapture(e.pointerId)) {
+                            rotator.releasePointerCapture(e.pointerId);
+                        }
+                    }
+                };
+                rotator.addEventListener("pointerup", onRotateEnd);
+                rotator.addEventListener("pointercancel", onRotateEnd);
+
+                rotator.addEventListener("dblclick", (e) => {
+                    e.stopPropagation();
+                    coverEffectsConfig.textRotate = 0;
+                    updateCoverTextPanelControls();
+                    updateCoverLivePreview();
+                });
+            }
+        }
+
+        /**
+         * 初始化封面文字图内变换控制器（Transformer Overlay）的手势交互系统。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `setupCoverEffectsControls`: 封面修饰控制面板初始化时调用。
+         */
+        function setupCoverTextTransformer() {
+            window.addEventListener("resize", () => {
+                syncCoverTextTransformer();
+            });
+
+            // 优先绑定大画幅沉浸式编辑舞台
+            const modalTransformer = document.getElementById("cover-modal-transformer");
+            const modalCanvas = document.getElementById("canvas-cover-modal-preview");
+            const modalRotator = document.getElementById("modal-transformer-rotator");
+            if (modalTransformer && modalCanvas) {
+                bindTransformerInteractions(modalTransformer, modalCanvas, modalRotator);
+            }
+        }
+
+        /**
+         * 初始化封面特效与修饰参数的控制面板事件监听与双向数据流。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `window.DOMContentLoaded`: 初始化应用全景时调用。
+         */
         function setupCoverEffectsControls() {
             const selectFrame = document.getElementById("select-cover-frame");
             const selectConfusion = document.getElementById("select-cover-confusion");
@@ -4896,10 +5630,17 @@
             const selectPixelSize = document.getElementById("select-pixel-size");
             const boxScrambleKey = document.getElementById("box-scramble-key");
             const inputScrambleKey = document.getElementById("input-scramble-key");
-            const selectBlur = document.getElementById("select-cover-blur");
             const inputText = document.getElementById("input-cover-text");
-            const selectTextPos = document.getElementById("select-cover-text-pos");
-            const selectTextSize = document.getElementById("select-cover-text-size");
+
+            const inputBlur = document.getElementById("input-cover-blur");
+            const inputBlurNum = document.getElementById("input-cover-blur-num");
+
+            const inputSize = document.getElementById("input-cover-text-size");
+            const inputSizeNum = document.getElementById("input-cover-text-size-num");
+
+            const inputRotate = document.getElementById("input-cover-text-rotate");
+            const inputRotateNum = document.getElementById("input-cover-text-rotate-num");
+            const btnRotateReset = document.getElementById("btn-rotate-reset");
 
             const selectTextFont = document.getElementById("select-cover-text-font");
             const selectTextBg = document.getElementById("select-cover-text-bg");
@@ -4907,38 +5648,46 @@
             const inputBgColor = document.getElementById("input-cover-text-bg-color");
             const inputTextColor = document.getElementById("input-cover-text-color");
 
-            selectFrame.addEventListener("change", (e) => {
-                currentCoverFrameIndex = parseInt(e.target.value, 10) || 0;
-                updateCoverLivePreview();
-            });
+            // 1. 隐藏帧选择
+            if (selectFrame) {
+                selectFrame.addEventListener("change", (e) => {
+                    currentCoverFrameIndex = parseInt(e.target.value, 10) || 0;
+                    updateCoverLivePreview();
+                });
+            }
 
-            selectConfusion.addEventListener("change", (e) => {
-                coverEffectsConfig.confusion = e.target.value;
-                boxPixelSize.style.display = (coverEffectsConfig.confusion === 'pixelate') ? "flex" : "none";
-                const isScrambleWithKey = ['gilbert', 'pic_block', 'pic_row', 'pic_pixel', 'pic_chaos_row', 'pic_chaos_2d'].includes(coverEffectsConfig.confusion);
-                if (boxScrambleKey) {
-                    boxScrambleKey.style.display = isScrambleWithKey ? "flex" : "none";
-                }
-                if (isScrambleWithKey && inputScrambleKey) {
-                    if (coverEffectsConfig.confusion === 'gilbert') {
-                        if (!inputScrambleKey.value || inputScrambleKey.value === 'PicEncrypt' || inputScrambleKey.value === '0.618') {
-                            inputScrambleKey.value = "1";
-                            coverEffectsConfig.scrambleKey = "1";
-                        }
-                    } else if (coverEffectsConfig.confusion === 'pic_chaos_row' || coverEffectsConfig.confusion === 'pic_chaos_2d') {
-                        if (!inputScrambleKey.value || inputScrambleKey.value === 'PicEncrypt' || inputScrambleKey.value === '1') {
-                            inputScrambleKey.value = "0.618";
-                            coverEffectsConfig.scrambleKey = "0.618";
-                        }
-                    } else {
-                        if (!inputScrambleKey.value || inputScrambleKey.value === '1' || inputScrambleKey.value === '0.618') {
-                            inputScrambleKey.value = "PicEncrypt";
-                            coverEffectsConfig.scrambleKey = "PicEncrypt";
+            // 2. 混淆特效
+            if (selectConfusion) {
+                selectConfusion.addEventListener("change", (e) => {
+                    coverEffectsConfig.confusion = e.target.value;
+                    if (boxPixelSize) {
+                        boxPixelSize.style.display = (coverEffectsConfig.confusion === 'pixelate') ? "flex" : "none";
+                    }
+                    const isScrambleWithKey = ['gilbert', 'pic_block', 'pic_row', 'pic_pixel', 'pic_chaos_row', 'pic_chaos_2d'].includes(coverEffectsConfig.confusion);
+                    if (boxScrambleKey) {
+                        boxScrambleKey.style.display = isScrambleWithKey ? "flex" : "none";
+                    }
+                    if (isScrambleWithKey && inputScrambleKey) {
+                        if (coverEffectsConfig.confusion === 'gilbert') {
+                            if (!inputScrambleKey.value || inputScrambleKey.value === 'PicEncrypt' || inputScrambleKey.value === '0.618') {
+                                inputScrambleKey.value = "1";
+                                coverEffectsConfig.scrambleKey = "1";
+                            }
+                        } else if (coverEffectsConfig.confusion === 'pic_chaos_row' || coverEffectsConfig.confusion === 'pic_chaos_2d') {
+                            if (!inputScrambleKey.value || inputScrambleKey.value === 'PicEncrypt' || inputScrambleKey.value === '1') {
+                                inputScrambleKey.value = "0.618";
+                                coverEffectsConfig.scrambleKey = "0.618";
+                            }
+                        } else {
+                            if (!inputScrambleKey.value || inputScrambleKey.value === '1' || inputScrambleKey.value === '0.618') {
+                                inputScrambleKey.value = "PicEncrypt";
+                                coverEffectsConfig.scrambleKey = "PicEncrypt";
+                            }
                         }
                     }
-                }
-                updateCoverLivePreview();
-            });
+                    updateCoverLivePreview();
+                });
+            }
 
             if (inputScrambleKey) {
                 inputScrambleKey.addEventListener("input", (e) => {
@@ -4947,31 +5696,75 @@
                 });
             }
 
-            selectPixelSize.addEventListener("change", (e) => {
-                coverEffectsConfig.pixelSize = parseInt(e.target.value, 10) || 16;
-                updateCoverLivePreview();
-            });
+            if (selectPixelSize) {
+                selectPixelSize.addEventListener("change", (e) => {
+                    coverEffectsConfig.pixelSize = parseInt(e.target.value, 10) || 16;
+                    updateCoverLivePreview();
+                });
+            }
 
-            selectBlur.addEventListener("change", (e) => {
-                coverEffectsConfig.blurRadius = parseInt(e.target.value, 10) || 0;
+            // 3. 模糊度控制（滑块与数字微调双向同步）
+            const syncBlur = (val) => {
+                const radius = Math.max(0, Math.min(300, parseInt(val, 10) || 0));
+                coverEffectsConfig.blurRadius = radius;
+                if (inputBlur) inputBlur.value = Math.min(120, radius);
+                if (inputBlurNum) inputBlurNum.value = radius;
                 updateCoverLivePreview();
-            });
+            };
 
-            inputText.addEventListener("input", (e) => {
-                coverEffectsConfig.text = e.target.value;
+            if (inputBlur && inputBlurNum) {
+                inputBlur.addEventListener("input", (e) => syncBlur(e.target.value));
+                inputBlurNum.addEventListener("change", (e) => syncBlur(e.target.value));
+                inputBlurNum.addEventListener("input", (e) => syncBlur(e.target.value));
+            }
+
+            // 4. 文字内容输入
+            if (inputText) {
+                inputText.addEventListener("input", (e) => {
+                    coverEffectsConfig.text = e.target.value;
+                    updateCoverLivePreview();
+                });
+            }
+
+            // 5. 字号控制（滑块与数字微调双向同步）
+            const syncTextSize = (val) => {
+                const s = Math.max(8, Math.min(2000, parseInt(val, 10) || 48));
+                coverEffectsConfig.textSize = s;
+                if (inputSize) inputSize.value = Math.min(400, s);
+                if (inputSizeNum) inputSizeNum.value = s;
                 updateCoverLivePreview();
-            });
+            };
 
-            selectTextPos.addEventListener("change", (e) => {
-                coverEffectsConfig.textPosition = e.target.value;
+            if (inputSize && inputSizeNum) {
+                inputSize.addEventListener("input", (e) => syncTextSize(e.target.value));
+                inputSizeNum.addEventListener("change", (e) => syncTextSize(e.target.value));
+                inputSizeNum.addEventListener("input", (e) => syncTextSize(e.target.value));
+            }
+
+            // 6. 旋转控制（滑块、数字微调与一键水平重置）
+            const syncRotate = (val) => {
+                let r = parseInt(val, 10) || 0;
+                while (r > 180) r -= 360;
+                while (r < -180) r += 360;
+                coverEffectsConfig.textRotate = r;
+                if (inputRotate) inputRotate.value = r;
+                if (inputRotateNum) inputRotateNum.value = r;
                 updateCoverLivePreview();
-            });
+            };
 
-            selectTextSize.addEventListener("change", (e) => {
-                coverEffectsConfig.textSize = parseInt(e.target.value, 10) || 24;
-                updateCoverLivePreview();
-            });
+            if (inputRotate && inputRotateNum) {
+                inputRotate.addEventListener("input", (e) => syncRotate(e.target.value));
+                inputRotateNum.addEventListener("change", (e) => syncRotate(e.target.value));
+                inputRotateNum.addEventListener("input", (e) => syncRotate(e.target.value));
+            }
 
+            if (btnRotateReset) {
+                btnRotateReset.addEventListener("click", () => {
+                    syncRotate(0);
+                });
+            }
+
+            // 7. 字体风格与背景衬底
             if (selectTextFont) {
                 selectTextFont.addEventListener("change", (e) => {
                     coverEffectsConfig.textFont = e.target.value;
@@ -5001,6 +5794,176 @@
                     coverEffectsConfig.customTextColor = e.target.value;
                     updateCoverLivePreview();
                 });
+            }
+
+            // 8. 快捷水印文字标签预设点击与画布空白聚焦
+            const quickTextContainer = document.getElementById("cover-quick-text-chips");
+            if (quickTextContainer) {
+                quickTextContainer.addEventListener("click", (e) => {
+                    const btn = e.target.closest("[data-quick-text]");
+                    if (!btn) return;
+                    const text = btn.getAttribute("data-quick-text") || "";
+                    if (inputText) {
+                        inputText.value = text;
+                    }
+                    coverEffectsConfig.text = text;
+                    updateCoverLivePreview();
+                });
+            }
+
+            // 9. 启动图内交互变换控制器手势监听系统
+            setupCoverTextTransformer();
+
+            // 10. 大画幅封面编辑模态框呼出与关闭监听
+            const btnOpen = document.getElementById("btn-open-cover-editor");
+            const coverStage = document.getElementById("cover-preview-stage");
+            const btnClose = document.getElementById("btn-cover-editor-close");
+            const btnDone = document.getElementById("btn-cover-editor-done");
+            const coverModal = document.getElementById("modal-cover-editor");
+
+            if (btnOpen) btnOpen.addEventListener("click", openCoverEditorModal);
+            if (coverStage) {
+                coverStage.addEventListener("click", (e) => {
+                    if (!e.target.closest("#btn-open-cover-editor") && !e.target.closest(".cover-text-transformer")) {
+                        openCoverEditorModal();
+                    }
+                });
+            }
+
+            if (btnClose) btnClose.addEventListener("click", closeCoverEditorModal);
+            if (btnDone) btnDone.addEventListener("click", closeCoverEditorModal);
+            if (coverModal) {
+                coverModal.addEventListener("click", (e) => {
+                    if (e.target === coverModal) {
+                        closeCoverEditorModal();
+                    }
+                });
+                // 阻断非控件区域的滚轮与触摸事件，彻底杜绝背后页面滚动穿透
+                coverModal.addEventListener("wheel", (e) => {
+                    if (!e.target.closest(".cover-editor-controls-panel")) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                coverModal.addEventListener("touchmove", (e) => {
+                    if (!e.target.closest(".cover-editor-controls-panel")) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
+
+            // 11. 显式剪贴板粘贴按钮绑定
+            const btnPasteCover = document.getElementById("btn-paste-cover");
+            const btnModalPasteCover = document.getElementById("btn-modal-paste-cover");
+            const btnPasteHidden = document.getElementById("btn-paste-hidden");
+
+            if (btnPasteCover) {
+                btnPasteCover.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    handleClipboardPaste('cover');
+                });
+            }
+            if (btnModalPasteCover) {
+                btnModalPasteCover.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    handleClipboardPaste('cover');
+                });
+            }
+            if (btnPasteHidden) {
+                btnPasteHidden.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    handleClipboardPaste('hidden');
+                });
+            }
+        }
+
+        /**
+         * 打开大画幅/全屏封面精修与水印模态对话框，并锁定背部页面滚动。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `btnOpenCoverEditor.onclick`
+         *  - `coverPreviewStage.onclick`
+         */
+        function openCoverEditorModal() {
+            const modal = document.getElementById("modal-cover-editor");
+            if (!modal) return;
+            modal.style.display = "flex";
+            document.body.style.overflow = "hidden";
+            updateCoverTextPanelControls();
+            updateCoverLivePreview();
+            requestAnimationFrame(() => {
+                syncCoverTextTransformer();
+            });
+        }
+
+        /**
+         * 关闭大画幅/全屏封面精修与水印模态对话框，恢复背部页面滚动，并同步刷新主界面展示。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `btnCoverEditorClose.onclick`
+         *  - `btnCoverEditorDone.onclick`
+         *  - `setupKeyboardShortcuts: Esc`
+         */
+        function closeCoverEditorModal() {
+            const modal = document.getElementById("modal-cover-editor");
+            if (!modal) return;
+            modal.style.display = "none";
+            document.body.style.overflow = "";
+            updateCoverLivePreview();
+        }
+
+        /**
+         * 处理来自显式按钮的异步系统剪贴板图像读取与导入。
+         *
+         * 优先使用现代标准的 `navigator.clipboard.read()` 提取图像 Blob，
+         * 并自动封装为 File 对象分流送入封面或隐藏帧媒体序列处理管道。
+         *
+         * @param {'cover'|'hidden'} target - 目标导入模块，'cover' 为封面图片，'hidden' 为隐藏媒体序列。
+         * @returns {Promise<void>}
+         * @see Callers:
+         *  - `btnPasteCover.onclick`
+         *  - `btnModalPasteCover.onclick`
+         *  - `btnPasteHidden.onclick`
+         */
+        async function handleClipboardPaste(target) {
+            if (!navigator.clipboard || typeof navigator.clipboard.read !== "function") {
+                showToast("当前浏览器或安全连接环境不支持直接读取剪贴板，请直接点击上传框从相册/本地选取图片", "warning", 3000);
+                return;
+            }
+
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                const imageFiles = [];
+                for (const item of clipboardItems) {
+                    for (const type of item.types) {
+                        if (type.startsWith("image/")) {
+                            const blob = await item.getType(type);
+                            const ext = type.split("/")[1] || "png";
+                            const file = new File([blob], `clipboard_${Date.now()}.${ext}`, { type });
+                            imageFiles.push(file);
+                            break;
+                        }
+                    }
+                }
+
+                if (imageFiles.length === 0) {
+                    showToast("系统剪贴板中未检测到有效的图片，请先在手机或电脑中截图/复制图片", "info", 2500);
+                    return;
+                }
+
+                if (target === 'cover') {
+                    setCoverMode('image');
+                    await processCoverFile(imageFiles[0]);
+                } else {
+                    await processHiddenFiles(imageFiles);
+                }
+            } catch (err) {
+                if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                    showToast("未能获取剪贴板读取授权，请允许浏览器读取剪贴板权限，或直接点击上传框选取图片", "warning", 3000);
+                } else {
+                    showToast(`剪贴板读取失败: ${err.message}`, "error", 3000);
+                }
             }
         }
 
@@ -5371,6 +6334,7 @@
                     setLoadingState(false);
                     updateTrimmerDisplay();
                     document.getElementById("modal-video-trimmer").style.display = "flex";
+                    document.body.style.overflow = "hidden";
                     video.currentTime = trimmerState.startTime;
                 };
 
@@ -5413,6 +6377,7 @@
                     renderAnimTrimmerFrame(0);
                     updateTrimmerDisplay();
                     document.getElementById("modal-video-trimmer").style.display = "flex";
+                    document.body.style.overflow = "hidden";
                 } catch (err) {
                     showError(`动图解析失败: ${err.message}`);
                 } finally {
@@ -5427,7 +6392,7 @@
         const openVideoTrimmer = openMediaTrimmer;
 
         /**
-         * 关闭多媒体裁剪对话框并释放预览媒体引用。
+         * 关闭多媒体裁剪对话框并释放预览媒体引用，恢复背部页面滚动。
          *
          * @returns {void}
          * @see Callers:
@@ -5446,6 +6411,7 @@
             trimmerState.file = null;
             trimmerState.animFrames = [];
             document.getElementById("modal-video-trimmer").style.display = "none";
+            document.body.style.overflow = "";
         }
 
         /**
@@ -5652,6 +6618,25 @@
             // 取消与关闭
             document.getElementById("btn-trimmer-close").addEventListener("click", closeVideoTrimmer);
             document.getElementById("btn-trimmer-cancel").addEventListener("click", closeVideoTrimmer);
+
+            const trimmerOverlay = document.getElementById("modal-video-trimmer");
+            if (trimmerOverlay) {
+                trimmerOverlay.addEventListener("click", (e) => {
+                    if (e.target === trimmerOverlay) {
+                        closeVideoTrimmer();
+                    }
+                });
+                trimmerOverlay.addEventListener("wheel", (e) => {
+                    if (!e.target.closest(".modal-body")) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                trimmerOverlay.addEventListener("touchmove", (e) => {
+                    if (!e.target.closest(".modal-body")) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
 
             // 确认截取
             document.getElementById("btn-trimmer-confirm").addEventListener("click", confirmMediaTrimmer);
@@ -7013,6 +7998,11 @@
                 const isModalOpen = modal && modal.style.display !== "none" && modal.style.display !== "";
 
                 if (e.key === "Escape") {
+                    const coverModal = document.getElementById("modal-cover-editor");
+                    if (coverModal && coverModal.style.display !== "none" && coverModal.style.display !== "") {
+                        closeCoverEditorModal();
+                        return;
+                    }
                     if (isModalOpen) {
                         closeVideoTrimmer();
                     }
@@ -7031,6 +8021,55 @@
                             }
                         }
                     }
+                }
+            });
+        }
+
+        /**
+         * 注册全局剪贴板粘贴（Ctrl + V / Cmd + V）事件监听器。
+         *
+         * 自动提取系统剪贴板中的图像数据并进行智能分流与格式导入：
+         * 1. 若当前处于封面图片上传模式（currentCoverMode === 'image'），优先解析并应用为封面图片；
+         * 2. 其它模式下默认将图像追加解析为隐藏帧序列；
+         * 3. 若用户焦点正处于文本输入框（INPUT / TEXTAREA）且剪贴板仅为普通文本，则放行原生粘贴行为，避免干扰正常文本输入；
+         * 4. 若剪贴板中检测到图像，则拦截浏览器默认行为并载入图像资产。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:window.DOMContentLoaded`
+         */
+        function setupClipboardPaste() {
+            window.addEventListener("paste", async (e) => {
+                const clipboardData = e.clipboardData || window.clipboardData;
+                if (!clipboardData) return;
+
+                const items = clipboardData.items;
+                if (!items || items.length === 0) return;
+
+                const imageFiles = [];
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.kind === "file" && item.type.startsWith("image/")) {
+                        const file = item.getAsFile();
+                        if (file) {
+                            imageFiles.push(file);
+                        }
+                    }
+                }
+
+                // 若剪贴板中无任何图片文件，则保持浏览器原生输入行为（如在输入框中粘贴文字）
+                if (imageFiles.length === 0) {
+                    return;
+                }
+
+                // 阻止浏览器默认粘贴行为，避免未捕获的图片在页面中引发非预期导航
+                e.preventDefault();
+
+                // 智能分流至封面或隐藏帧媒体序列
+                if (currentCoverMode === 'image') {
+                    await processCoverFile(imageFiles[0]);
+                } else {
+                    await processHiddenFiles(imageFiles);
                 }
             });
         }
@@ -7425,8 +8464,9 @@
             // 视频时间轴裁剪交互初始化
             setupTimelineTrimmerEvents();
 
-            // 注册全局键盘快捷键
+            // 注册全局键盘快捷键与剪贴板图片粘贴
             setupKeyboardShortcuts();
+            setupClipboardPaste();
 
             // 批量操作与单位切换
             setupBatchSpeedEvents();
