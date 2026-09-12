@@ -1321,15 +1321,15 @@
             </div>
         </div>
         <p class="description">
-            基于 APNG 标准规范实现：外层缩略仅解码首帧静态块显示封面，点开大图播放动画序列轮播隐藏项目。<br>
-            完全在本地浏览器端完成，支持纯色/图片封面、多图/动图/视频作为隐藏项、视频双端拖拽裁切与原帧率/任意帧率自定义。
+            制作“缩略图看封面，点开看动图或视频”的 APNG 伪装图片。<br>
+            纯本地处理，保护隐私；支持图片、动图与视频，支持裁剪时段与封面特效。
         </p>
 
         <div class="grid">
             <!-- 封面图设置卡片 -->
             <div class="section-box">
                 <div class="section-header">
-                    <div class="section-title">1. 伪装封面设置（外层显示）</div>
+                    <div class="section-title">1. 封面设置</div>
                     <div class="tab-group">
                         <button id="tab-cover-color" class="tab-btn active" type="button">自选纯色</button>
                         <button id="tab-cover-image" class="tab-btn" type="button">上传图片</button>
@@ -1378,50 +1378,49 @@
                     <div id="cover-frame-hint" style="font-size: 12px; color: var(--warning); display: none;">提示：当前尚未添加任何隐藏帧，请先在右侧上传图片或导入视频。</div>
                 </div>
 
-                <!-- 封面修饰处理流水线（混淆、模糊与自定义文字） -->
+                <!-- 封面修饰与混淆 -->
                 <div class="cover-effects-panel" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
                     <div style="font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>封面视觉修饰与混淆处理</span>
-                        <span style="font-weight: normal; color: var(--text-sub); font-size: 11px;">(所见即所得)</span>
+                        <span>封面修饰与混淆</span>
                     </div>
 
                     <!-- 混淆方式与颗粒度 -->
                     <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
                         <label for="select-cover-confusion">混淆方式：</label>
                         <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
-                            <option value="none" selected>不混淆（保持原样）</option>
-                            <option value="gilbert">小番茄空间填充曲线 (Gilbert Curve)</option>
-                            <option value="pic_block">PicEncrypt 块级随机置乱 (Block Scramble)</option>
-                            <option value="pic_row">PicEncrypt 行像素置乱 (Row Pixel Scramble)</option>
-                            <option value="pic_pixel">PicEncrypt 逐像素全局置乱 (Per-Pixel Scramble)</option>
-                            <option value="pic_chaos_row">PicEncrypt 混沌映射行置乱 (Logistic Chaos Row)</option>
-                            <option value="pic_chaos_2d">PicEncrypt 混沌行列交织置乱 (Logistic Chaos 2D)</option>
-                            <option value="pixelate">马赛克像素化</option>
-                            <option value="rgb_split">RGB 色散重影 (赛博朋克)</option>
-                            <option value="scanline">CRT 扫描线与错位拉丝</option>
-                            <option value="jigsaw">拼图碎纸机打乱 (Tile Shuffle)</option>
-                            <option value="swirl">黑洞漩涡扭曲 (Vortex Twirl)</option>
-                            <option value="halftone">波普半色调网点 (Pop Dots)</option>
-                            <option value="ascii">极客 ASCII 字符画 (Terminal)</option>
-                            <option value="edge">霓虹线框轮廓 (Cyber Edge)</option>
-                            <option value="caution">黄黑警戒安全带 (Caution Tape)</option>
-                            <option value="invert">色彩反转（负片）</option>
-                            <option value="grayscale">黑白灰度化</option>
-                            <option value="noise">随机噪点干扰</option>
+                            <option value="none" selected>无混淆 (原样)</option>
+                            <option value="gilbert">小番茄曲线</option>
+                            <option value="pic_block">块置乱</option>
+                            <option value="pic_row">行置乱</option>
+                            <option value="pic_pixel">像素打乱</option>
+                            <option value="pic_chaos_row">混沌行置乱</option>
+                            <option value="pic_chaos_2d">混沌二维置乱</option>
+                            <option value="pixelate">马赛克</option>
+                            <option value="rgb_split">RGB 色散</option>
+                            <option value="scanline">扫描线</option>
+                            <option value="jigsaw">拼图打乱</option>
+                            <option value="swirl">漩涡扭曲</option>
+                            <option value="halftone">半色调网点</option>
+                            <option value="ascii">ASCII 字符</option>
+                            <option value="edge">轮廓线框</option>
+                            <option value="caution">警戒封条</option>
+                            <option value="invert">色彩反转</option>
+                            <option value="grayscale">黑白灰度</option>
+                            <option value="noise">随机噪点</option>
                         </select>
 
                         <div id="box-scramble-key" style="display: none; align-items: center; gap: 4px;">
                             <label for="input-scramble-key">混淆密钥：</label>
-                            <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或浮点数" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 110px; outline: none;" />
+                            <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或数值" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 110px; outline: none;" />
                         </div>
 
                         <div id="box-pixel-size" style="display: none; align-items: center; gap: 4px;">
                             <label for="select-pixel-size">颗粒度：</label>
                             <select id="select-pixel-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 12px; outline: none;">
-                                <option value="8">8px (微粒)</option>
-                                <option value="16" selected>16px (标准)</option>
-                                <option value="24">24px (粗重)</option>
-                                <option value="36">36px (强力)</option>
+                                <option value="8">8px (小)</option>
+                                <option value="16" selected>16px (中)</option>
+                                <option value="24">24px (大)</option>
+                                <option value="36">36px (特大)</option>
                             </select>
                         </div>
                     </div>
@@ -1431,10 +1430,10 @@
                         <label for="select-cover-blur">模糊效果：</label>
                         <select id="select-cover-blur" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
                             <option value="0" selected>无模糊</option>
-                            <option value="4">4px (轻微柔化)</option>
-                            <option value="8">8px (中度模糊)</option>
-                            <option value="16">16px (深度磨砂)</option>
-                            <option value="24">24px (强力隐蔽)</option>
+                            <option value="4">轻度 (4px)</option>
+                            <option value="8">中度 (8px)</option>
+                            <option value="16">较强 (16px)</option>
+                            <option value="24">极强 (24px)</option>
                         </select>
                     </div>
 
@@ -1442,15 +1441,15 @@
                     <div style="display: flex; flex-direction: column; gap: 6px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <label for="input-cover-text">封面文字：</label>
-                            <input type="text" id="input-cover-text" placeholder="例如：点击查看大图 / ⚠️ 剧透预警" style="flex: 1; background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none;" maxlength="30" />
+                            <input type="text" id="input-cover-text" placeholder="例如：点击查看大图 / 剧透预警" style="flex: 1; background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none;" maxlength="30" />
                         </div>
                         <div id="box-cover-text-opts" style="display: flex; align-items: center; gap: 12px; padding-left: 64px;">
                             <div style="display: flex; align-items: center; gap: 4px;">
                                 <label for="select-cover-text-pos">位置：</label>
                                 <select id="select-cover-text-pos" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                    <option value="center" selected>画面正中</option>
-                                    <option value="bottom">画面底部</option>
-                                    <option value="top">画面顶部</option>
+                                    <option value="center" selected>居中</option>
+                                    <option value="bottom">底部</option>
+                                    <option value="top">顶部</option>
                                 </select>
                             </div>
                             <div style="display: flex; align-items: center; gap: 4px;">
@@ -1467,7 +1466,7 @@
                     <!-- 实时所见即所得封面监看画框 -->
                     <div class="cover-live-preview-box">
                         <div class="cover-live-preview-header">
-                            <span class="cover-live-preview-title">最终封面合成实时预览：</span>
+                            <span class="cover-live-preview-title">封面预览：</span>
                             <span id="cover-preview-ratio-badge" class="cover-preview-ratio-badge">自适应</span>
                         </div>
                         <div id="cover-preview-stage" class="cover-preview-stage">
@@ -1480,15 +1479,15 @@
             <!-- 隐藏项设置卡片 -->
             <div class="section-box">
                 <div class="section-header">
-                    <div class="section-title">2. 隐藏项目设置（点开显示）</div>
+                    <div class="section-title">2. 隐藏内容设置</div>
                     <span id="badge-frame-count" class="history-badge">已添加 0 帧</span>
                 </div>
 
                 <!-- 隐藏项目上传拖拽区（支持图片、动图、视频） -->
                 <div class="upload-card" id="drop-hidden" style="min-height: 120px; padding: 16px;">
                     <span class="upload-plus-icon">+</span>
-                    <div id="upload-hidden-title" class="upload-main-text" style="font-size: 15px; font-weight: 600;">点击或拖拽添加隐藏图片 / 动图 / 视频</div>
-                    <div class="upload-hint">选择视频文件后将自动呼出可视化区间裁剪器（支持原帧率与任意自定义帧率）</div>
+                    <div id="upload-hidden-title" class="upload-main-text" style="font-size: 15px; font-weight: 600;">点击或拖拽添加图片、动图或视频</div>
+                    <div class="upload-hint">动图与视频导入后支持自由裁剪时段与调整帧率</div>
                     <input type="file" id="input-hidden" multiple accept="image/*,video/*" />
                 </div>
 
@@ -1512,7 +1511,7 @@
                             <option value="s">秒 (s)</option>
                         </select>
                         <button id="btn-apply-batch-delay" class="btn-icon" type="button">应用到全部</button>
-                        <button id="btn-reverse-frames" class="btn-icon" type="button" title="一键颠倒当前隐藏帧序列的播放顺序">⇄ 倒序排列</button>
+                        <button id="btn-reverse-frames" class="btn-icon" type="button" title="颠倒当前帧序列顺序">⇄ 倒序排列</button>
                     </div>
                     <button id="btn-clear-all-frames" class="btn-icon danger" type="button">清空列表</button>
                 </div>
@@ -1522,15 +1521,15 @@
         <!-- 全局配置 -->
         <div class="controls">
             <div class="control-group">
-                <label for="select-resolution-preset">画布输出分辨率：</label>
+                <label for="select-resolution-preset">输出分辨率：</label>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                     <select id="select-resolution-preset">
-                        <option value="native" selected>原尺寸（以首张隐藏图为准）</option>
-                        <option value="preset_1080p">1080P 高清 (1920 × 1080)</option>
-                        <option value="preset_720p">720P 标清 (1280 × 720)</option>
-                        <option value="preset_480p">480P 紧凑 (854 × 480)</option>
-                        <option value="preset_360p">360P 极小 (640 × 360)</option>
-                        <option value="custom">自定义任意分辨率</option>
+                        <option value="native" selected>原尺寸 (首图基准)</option>
+                        <option value="preset_1080p">1080P (1920 × 1080)</option>
+                        <option value="preset_720p">720P (1280 × 720)</option>
+                        <option value="preset_480p">480P (854 × 480)</option>
+                        <option value="preset_360p">360P (640 × 360)</option>
+                        <option value="custom">自定义分辨率</option>
                     </select>
                     <div id="custom-res-panel" style="display: none; align-items: center; gap: 6px;">
                         <span>宽:</span>
@@ -1540,17 +1539,17 @@
                         <span>px</span>
                         <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; user-select: none;">
                             <input type="checkbox" id="check-aspect-ratio" checked />
-                            <span>锁定宽高比</span>
+                            <span>锁定比例</span>
                         </label>
                     </div>
                 </div>
             </div>
             <div class="control-group">
-                <label for="select-mode">画面适配方式（当分辨率与原图不一致时）：</label>
+                <label for="select-mode">画面适配：</label>
                 <select id="select-mode">
-                    <option value="cover-fit">居中裁剪填充（填满画面，无黑边）</option>
-                    <option value="contain-fit">等比缩放留黑（画面完整保留，留黑边）</option>
-                    <option value="stretch-fit">强行拉伸填满（画面可能产生形变）</option>
+                    <option value="cover-fit">居中裁剪 (无黑边)</option>
+                    <option value="contain-fit">等比缩放 (留黑边)</option>
+                    <option value="stretch-fit">拉伸填满</option>
                 </select>
             </div>
         </div>
@@ -1598,10 +1597,11 @@
     </div>
 
     <!-- 动态媒体（视频/动图）时段可视化双端拖拽裁剪模态对话框 -->
+    <!-- 动态媒体（视频/动图）时段裁剪对话框 -->
     <div id="modal-video-trimmer" class="modal-overlay">
         <div class="modal-dialog">
             <div class="modal-header">
-                <h3 id="trimmer-modal-title">自定义视频隐藏时段与帧数转换</h3>
+                <h3 id="trimmer-modal-title">裁剪时段与帧率</h3>
                 <button id="btn-trimmer-close" class="modal-close" type="button">×</button>
             </div>
             <div class="modal-body">
@@ -1623,21 +1623,21 @@
                             起始: 00:00.0 | 结束: 全部 | 时长: 默认全选
                         </div>
                         <div id="trimmer-source-meta" class="trimmer-source-meta">
-                            原视频: 正在检测...
+                            原文件: 正在检测...
                         </div>
                     </div>
                     <div class="trimmer-control-row">
                         <div class="fps-mode-selector">
-                            <label id="trimmer-mode-label" for="trimmer-mode-select">帧率转换模式：</label>
+                            <label id="trimmer-mode-label" for="trimmer-mode-select">帧率模式：</label>
                             <select id="trimmer-mode-select">
-                                <option value="native" selected>使用原视频帧率 (原汁原味)</option>
-                                <option value="preset_60">流畅极速 (60 FPS)</option>
-                                <option value="preset_30">标准电影 (30 FPS)</option>
-                                <option value="preset_24">影院帧率 (24 FPS)</option>
-                                <option value="preset_15">平滑紧凑 (15 FPS)</option>
-                                <option value="preset_10">均衡节能 (10 FPS)</option>
-                                <option value="custom_fps">自定义任意 FPS</option>
-                                <option value="fixed_count">截取固定总帧数</option>
+                                <option value="native" selected>原始帧率</option>
+                                <option value="preset_60">60 FPS</option>
+                                <option value="preset_30">30 FPS</option>
+                                <option value="preset_24">24 FPS</option>
+                                <option value="preset_15">15 FPS</option>
+                                <option value="preset_10">10 FPS</option>
+                                <option value="custom_fps">自定义 FPS</option>
+                                <option value="fixed_count">固定总帧数</option>
                             </select>
                         </div>
                         <div id="custom-fps-box" style="display: none; align-items: center; gap: 4px;">
@@ -1645,7 +1645,7 @@
                             <input type="number" id="input-custom-fps" class="fps-number-input" value="20" min="1" max="120" />
                         </div>
                         <div id="fixed-count-box" style="display: none; align-items: center; gap: 4px;">
-                            <span>抽取总帧数：</span>
+                            <span>抽取帧数：</span>
                             <input type="number" id="input-fixed-count" class="fps-number-input" value="30" min="2" max="300" />
                         </div>
                         <div id="trimmer-calc-summary" style="margin-left: auto; font-weight: 500; color: var(--text-sub);">
@@ -1656,9 +1656,9 @@
             </div>
             <div class="modal-footer">
                 <button id="btn-trimmer-select-all" class="btn-modal" type="button">全选</button>
-                <button id="btn-trimmer-preview" class="btn-modal" type="button">▶ 试看选定时段</button>
+                <button id="btn-trimmer-preview" class="btn-modal" type="button">▶ 试看选区</button>
                 <button id="btn-trimmer-cancel" class="btn-modal" type="button">取消</button>
-                <button id="btn-trimmer-confirm" class="btn-modal primary" type="button">✔ 确认抽取此时段</button>
+                <button id="btn-trimmer-confirm" class="btn-modal primary" type="button">✔ 确认导入</button>
             </div>
         </div>
     </div>
@@ -4231,20 +4231,20 @@
             const metaEl = document.getElementById("trimmer-source-meta");
 
             if (detected.category === 'video') {
-                titleEl.textContent = `自定义视频隐藏时段与帧数转换 [${detected.formatLabel}]`;
+                titleEl.textContent = `裁剪视频 [${detected.formatLabel}]`;
                 video.style.display = "block";
                 canvas.style.display = "none";
-                modeLabel.textContent = "帧率转换模式：";
+                modeLabel.textContent = "帧率模式：";
 
                 modeSelect.innerHTML = `
-                    <option value="native" selected>使用原视频帧率 (原汁原味)</option>
-                    <option value="preset_60">流畅极速 (60 FPS)</option>
-                    <option value="preset_30">标准电影 (30 FPS)</option>
-                    <option value="preset_24">影院帧率 (24 FPS)</option>
-                    <option value="preset_15">平滑紧凑 (15 FPS)</option>
-                    <option value="preset_10">均衡节能 (10 FPS)</option>
-                    <option value="custom_fps">自定义任意 FPS</option>
-                    <option value="fixed_count">截取固定总帧数</option>
+                    <option value="native" selected>原始帧率</option>
+                    <option value="preset_60">60 FPS</option>
+                    <option value="preset_30">30 FPS</option>
+                    <option value="preset_24">24 FPS</option>
+                    <option value="preset_15">15 FPS</option>
+                    <option value="preset_10">10 FPS</option>
+                    <option value="custom_fps">自定义 FPS</option>
+                    <option value="fixed_count">固定总帧数</option>
                 `;
 
                 if (trimmerState.objectUrl) {
@@ -4275,7 +4275,7 @@
                     metaEl.textContent = `原视频: ${video.videoWidth} × ${video.videoHeight} @ ${detectedFps} FPS (总长: ${formatSeconds(dur)})`;
                     const nativeOpt = modeSelect.querySelector("option[value='native']");
                     if (nativeOpt) {
-                        nativeOpt.textContent = `使用原视频帧率 (${detectedFps} FPS)`;
+                        nativeOpt.textContent = `原始帧率 (${detectedFps} FPS)`;
                     }
 
                     setLoadingState(false);
@@ -4289,16 +4289,16 @@
                     showError("无法载入视频预览，可能格式不受支持。");
                 };
             } else if (detected.category === 'animated_image') {
-                titleEl.textContent = `自定义动图隐藏时段与帧抽取 [${detected.formatLabel}]`;
+                titleEl.textContent = `裁剪动图 [${detected.formatLabel}]`;
                 video.style.display = "none";
                 canvas.style.display = "block";
-                modeLabel.textContent = "动图抽取模式：";
+                modeLabel.textContent = "抽取模式：";
 
                 modeSelect.innerHTML = `
-                    <option value="anim_all" selected>保留选区全部帧 (原汁原味)</option>
-                    <option value="anim_step_2">隔帧采样 (每隔 1 帧取 1 帧，体积减半)</option>
-                    <option value="anim_step_3">稀疏采样 (每隔 2 帧取 1 帧，体积大幅缩小)</option>
-                    <option value="fixed_count">截取固定总帧数</option>
+                    <option value="anim_all" selected>保留全部帧</option>
+                    <option value="anim_step_2">隔 1 帧抽取 (减半)</option>
+                    <option value="anim_step_3">隔 2 帧抽取 (精简)</option>
+                    <option value="fixed_count">固定总帧数</option>
                 `;
 
                 setLoadingState(true, `正在解析动图 ${file.name} [${detected.formatLabel}]...`);
@@ -5699,11 +5699,11 @@
                 if (coverEffectsConfig.confusion !== 'none') {
                     const cMap = {
                         gilbert: '小番茄曲线',
-                        pic_block: 'Pic块置乱',
-                        pic_row: 'Pic行置乱',
-                        pic_pixel: 'Pic逐像素置乱',
-                        pic_chaos_row: 'Pic混沌行置乱',
-                        pic_chaos_2d: 'Pic混沌二维置乱',
+                        pic_block: '块置乱',
+                        pic_row: '行置乱',
+                        pic_pixel: '像素打乱',
+                        pic_chaos_row: '混沌行置乱',
+                        pic_chaos_2d: '混沌二维置乱',
                         pixelate: '马赛克',
                         invert: '反色',
                         grayscale: '灰度',
@@ -5711,11 +5711,11 @@
                         rgb_split: 'RGB色散',
                         scanline: '扫描线',
                         jigsaw: '拼图打乱',
-                        swirl: '黑洞漩涡',
+                        swirl: '漩涡扭曲',
                         halftone: '半色调网点',
                         ascii: 'ASCII字符',
-                        edge: '霓虹线框',
-                        caution: '警戒带'
+                        edge: '轮廓线框',
+                        caution: '警戒封条'
                     };
                     effectsTags.push(cMap[coverEffectsConfig.confusion] || coverEffectsConfig.confusion);
                 }
