@@ -1391,6 +1391,11 @@
                         <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
                             <option value="none" selected>不混淆（保持原样）</option>
                             <option value="gilbert">小番茄空间填充曲线 (Gilbert Curve)</option>
+                            <option value="pic_block">PicEncrypt 块级随机置乱 (Block Scramble)</option>
+                            <option value="pic_row">PicEncrypt 行像素置乱 (Row Pixel Scramble)</option>
+                            <option value="pic_pixel">PicEncrypt 逐像素全局置乱 (Per-Pixel Scramble)</option>
+                            <option value="pic_chaos_row">PicEncrypt 混沌映射行置乱 (Logistic Chaos Row)</option>
+                            <option value="pic_chaos_2d">PicEncrypt 混沌行列交织置乱 (Logistic Chaos 2D)</option>
                             <option value="pixelate">马赛克像素化</option>
                             <option value="rgb_split">RGB 色散重影 (赛博朋克)</option>
                             <option value="scanline">CRT 扫描线与错位拉丝</option>
@@ -1404,6 +1409,11 @@
                             <option value="grayscale">黑白灰度化</option>
                             <option value="noise">随机噪点干扰</option>
                         </select>
+
+                        <div id="box-scramble-key" style="display: none; align-items: center; gap: 4px;">
+                            <label for="input-scramble-key">混淆密钥：</label>
+                            <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或浮点数" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 110px; outline: none;" />
+                        </div>
 
                         <div id="box-pixel-size" style="display: none; align-items: center; gap: 4px;">
                             <label for="select-pixel-size">颗粒度：</label>
@@ -1702,8 +1712,9 @@
          * 封面修饰与混淆特效配置。
          */
         const coverEffectsConfig = {
-            confusion: 'none', // 'none' | 'gilbert' | 'pixelate' | 'invert' | 'grayscale' | 'noise' | 'rgb_split' | 'scanline' | 'jigsaw' | 'swirl' | 'halftone' | 'ascii' | 'edge' | 'caution'
+            confusion: 'none', // 'none' | 'gilbert' | 'pic_block' | 'pic_row' | 'pic_pixel' | 'pic_chaos_row' | 'pic_chaos_2d' | 'pixelate' | 'invert' | 'grayscale' | 'noise' | 'rgb_split' | 'scanline' | 'jigsaw' | 'swirl' | 'halftone' | 'ascii' | 'edge' | 'caution'
             pixelSize: 16,
+            scrambleKey: 'PicEncrypt',
             blurRadius: 0,
             text: '',
             textPosition: 'center', // 'center' | 'bottom' | 'top'
@@ -2121,11 +2132,12 @@
          * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
          * @param {number} width - 画布宽度。
          * @param {number} height - 画布高度。
+         * @param {number|string} [key=1] - 黄金分割步长倍率密钥（通常为 0~1.618 之间的数值）。
          * @returns {void}
          * @see Callers:
          *  - `applyCoverPostEffects`: 封面后处理特效渲染管线。
          */
-        function applyGilbertConfusion(ctx, width, height) {
+        function applyGilbertConfusion(ctx, width, height, key = 1) {
             if (width <= 0 || height <= 0) return;
             const totalPixels = width * height;
             const curve = generateGilbertCurveIndices(width, height);
@@ -2134,11 +2146,386 @@
             const dstImgData = ctx.createImageData(width, height);
             const dst32 = new Uint32Array(dstImgData.data.buffer);
 
-            const offset = Math.round(((Math.sqrt(5) - 1) / 2) * totalPixels);
+            const numKey = parseFloat(key);
+            const keyCoeff = (!isNaN(numKey) && numKey > 0) ? numKey : 1;
+            const offset = Math.max(1, Math.round(((Math.sqrt(5) - 1) / 2) * totalPixels * keyCoeff) % totalPixels);
             for (let i = 0; i < totalPixels; i++) {
                 const srcIdx = curve[i];
                 const dstIdx = curve[(i + offset) % totalPixels];
                 dst32[dstIdx] = src32[srcIdx];
+            }
+
+            ctx.putImageData(dstImgData, 0, 0);
+        }
+
+        /**
+         * 计算字符串的标准 MD5 散列值（RFC 1321），输出 32 位小写十六进制字符串。
+         *
+         * 用于为 PicEncrypt 经典置乱算法提供与 Java 原版 MessageDigest 完全一致的哈希种子。
+         *
+         * @param {string} str - 输入字符串。
+         * @returns {string} 32 位小写十六进制 MD5 哈希字符串。
+         * @see Callers:
+         *  - `shuffleWithMd5Key`: 基于 MD5 的伪随机洗牌排列生成器。
+         */
+        function calculateMd5(str) {
+            function safeAdd(x, y) {
+                const lsw = (x & 0xffff) + (y & 0xffff);
+                const msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+                return (msw << 16) | (lsw & 0xffff);
+            }
+            function bitRol(num, cnt) {
+                return (num << cnt) | (num >>> (32 - cnt));
+            }
+            function md5cmn(q, a, b, x, s, t) {
+                return safeAdd(bitRol(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b);
+            }
+            function md5ff(a, b, c, d, x, s, t) { return md5cmn((b & c) | (~b & d), a, b, x, s, t); }
+            function md5gg(a, b, c, d, x, s, t) { return md5cmn((b & d) | (c & ~d), a, b, x, s, t); }
+            function md5hh(a, b, c, d, x, s, t) { return md5cmn(b ^ c ^ d, a, b, x, s, t); }
+            function md5ii(a, b, c, d, x, s, t) { return md5cmn(c ^ (b | ~d), a, b, x, s, t); }
+
+            const bin = [];
+            const mask = (1 << 8) - 1;
+            for (let i = 0; i < str.length * 8; i += 8) {
+                bin[i >> 5] |= (str.charCodeAt(i / 8) & mask) << (i % 32);
+            }
+            bin[str.length >> 2] |= 0x80 << ((str.length % 4) * 8);
+            bin[(((str.length + 8) >> 6) << 4) + 14] = str.length * 8;
+
+            let a = 1732584193;
+            let b = -271733879;
+            let c = -1732584194;
+            let d = 271733878;
+
+            for (let i = 0; i < bin.length; i += 16) {
+                const olda = a, oldb = b, oldc = c, oldd = d;
+
+                a = md5ff(a, b, c, d, bin[i], 7, -680876936);
+                d = md5ff(d, a, b, c, bin[i + 1], 12, -389564586);
+                c = md5ff(c, d, a, b, bin[i + 2], 17, 606105819);
+                b = md5ff(b, c, d, a, bin[i + 3], 22, -1044525330);
+                a = md5ff(a, b, c, d, bin[i + 4], 7, -176418897);
+                d = md5ff(d, a, b, c, bin[i + 5], 12, 1200080426);
+                c = md5ff(c, d, a, b, bin[i + 6], 17, -1473231341);
+                b = md5ff(b, c, d, a, bin[i + 7], 22, -45705983);
+                a = md5ff(a, b, c, d, bin[i + 8], 7, 1770035416);
+                d = md5ff(d, a, b, c, bin[i + 9], 12, -1958414417);
+                c = md5ff(c, d, a, b, bin[i + 10], 17, -42063);
+                b = md5ff(b, c, d, a, bin[i + 11], 22, -1990404162);
+                a = md5ff(a, b, c, d, bin[i + 12], 7, 1804603682);
+                d = md5ff(d, a, b, c, bin[i + 13], 12, -40341101);
+                c = md5ff(c, d, a, b, bin[i + 14], 17, -1502002290);
+                b = md5ff(b, c, d, a, bin[i + 15], 22, 1236535329);
+
+                a = md5gg(a, b, c, d, bin[i + 1], 5, -165796510);
+                d = md5gg(d, a, b, c, bin[i + 6], 9, -1069501632);
+                c = md5gg(c, d, a, b, bin[i + 11], 14, 643717713);
+                b = md5gg(b, c, d, a, bin[i], 20, -373897302);
+                a = md5gg(a, b, c, d, bin[i + 5], 5, -701558691);
+                d = md5gg(d, a, b, c, bin[i + 10], 9, 38016083);
+                c = md5gg(c, d, a, b, bin[i + 15], 14, -660478335);
+                b = md5gg(b, c, d, a, bin[i + 4], 20, -405537848);
+                a = md5gg(a, b, c, d, bin[i + 9], 5, 568446438);
+                d = md5gg(d, a, b, c, bin[i + 14], 9, -1019803690);
+                c = md5gg(c, d, a, b, bin[i + 3], 14, -187363961);
+                b = md5gg(b, c, d, a, bin[i + 8], 20, 1163531501);
+                a = md5gg(a, b, c, d, bin[i + 13], 5, -1444681467);
+                d = md5gg(d, a, b, c, bin[i + 2], 9, -51403784);
+                c = md5gg(c, d, a, b, bin[i + 7], 14, 1735328473);
+                b = md5gg(b, c, d, a, bin[i + 12], 20, -1926607734);
+
+                a = md5hh(a, b, c, d, bin[i + 5], 4, -378558);
+                d = md5hh(d, a, b, c, bin[i + 8], 11, -2022574463);
+                c = md5hh(c, d, a, b, bin[i + 11], 16, 1839030562);
+                b = md5hh(b, c, d, a, bin[i + 14], 23, -35309556);
+                a = md5hh(a, b, c, d, bin[i + 1], 4, -1530992060);
+                d = md5hh(d, a, b, c, bin[i + 4], 11, 1272893353);
+                c = md5hh(c, d, a, b, bin[i + 7], 16, -155497632);
+                b = md5hh(b, c, d, a, bin[i + 10], 23, -1094730640);
+                a = md5hh(a, b, c, d, bin[i + 13], 4, 681279174);
+                d = md5hh(d, a, b, c, bin[i], 11, -358537222);
+                c = md5hh(c, d, a, b, bin[i + 3], 16, -722521979);
+                b = md5hh(b, c, d, a, bin[i + 6], 23, 76029189);
+                a = md5hh(a, b, c, d, bin[i + 9], 4, -640364487);
+                d = md5hh(d, a, b, c, bin[i + 12], 11, -421815835);
+                c = md5hh(c, d, a, b, bin[i + 15], 16, 530742520);
+                b = md5hh(b, c, d, a, bin[i + 2], 23, -995338651);
+
+                a = md5ii(a, b, c, d, bin[i], 6, -198630844);
+                d = md5ii(d, a, b, c, bin[i + 7], 10, 1126891415);
+                c = md5ii(c, d, a, b, bin[i + 14], 15, -1416354905);
+                b = md5ii(b, c, d, a, bin[i + 5], 21, -57434055);
+                a = md5ii(a, b, c, d, bin[i + 12], 6, 1700485571);
+                d = md5ii(d, a, b, c, bin[i + 3], 10, -1894986606);
+                c = md5ii(c, d, a, b, bin[i + 10], 15, -1051523);
+                b = md5ii(b, c, d, a, bin[i + 1], 21, -2054922799);
+                a = md5ii(a, b, c, d, bin[i + 8], 6, 1873313359);
+                d = md5ii(d, a, b, c, bin[i + 15], 10, -30611744);
+                c = md5ii(c, d, a, b, bin[i + 6], 15, -1560198380);
+                b = md5ii(b, c, d, a, bin[i + 13], 21, 1309151649);
+                a = md5ii(a, b, c, d, bin[i + 4], 6, -145523070);
+                d = md5ii(d, a, b, c, bin[i + 11], 10, -1120210379);
+                c = md5ii(c, d, a, b, bin[i + 2], 15, 718787259);
+                b = md5ii(b, c, d, a, bin[i + 9], 21, -343485551);
+
+                a = safeAdd(a, olda);
+                b = safeAdd(b, oldb);
+                c = safeAdd(c, oldc);
+                d = safeAdd(d, oldd);
+            }
+
+            const hexChars = "0123456789abcdef";
+            let hex = "";
+            const arr = [a, b, c, d];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const byte = (arr[i] >> (j * 8)) & 0xff;
+                    hex += hexChars.charAt((byte >> 4) & 0x0f) + hexChars.charAt(byte & 0x0f);
+                }
+            }
+            return hex;
+        }
+
+        /**
+         * 基于 MD5 伪随机哈希与 Fisher-Yates 算法生成特定密钥下的确定性置换排列。
+         *
+         * 严格对应 PicEncrypt 规范实现：遍历索引从 length - 1 递减，计算 MD5(key + i)，
+         * 取前 7 位十六进制数值对 (i + 1) 取模并进行原位置换。
+         *
+         * @param {number} length - 排列数组长度。
+         * @param {string} [key="PicEncrypt"] - 混淆密钥字符串。
+         * @returns {Int32Array} 长度为 length 的确定性置换索引数组。
+         * @see Callers:
+         *  - `applyPicEncryptBlock`: 块级置乱横纵块坐标洗牌。
+         *  - `applyPicEncryptRowPixel`: 行像素置乱横向洗牌。
+         *  - `applyPicEncryptPerPixel`: 逐像素置乱横纵双轴洗牌。
+         */
+        function shuffleWithMd5Key(length, key = "PicEncrypt") {
+            const arr = new Int32Array(length);
+            for (let i = 0; i < length; ++i) {
+                arr[i] = i;
+            }
+            const keyStr = String(key || "PicEncrypt");
+            for (let i = length - 1; i > 0; --i) {
+                const hex = calculateMd5(keyStr + i);
+                const rand = parseInt(hex.substring(0, 7), 16) % (i + 1);
+                const tmp = arr[rand];
+                arr[rand] = arr[i];
+                arr[i] = tmp;
+            }
+            return arr;
+        }
+
+        /**
+         * 基于经典一维 Logistic 混沌系统映射生成确定性空间置换索引。
+         *
+         * 动力学方程迭代：x = 3.9999999 * x * (1 - x)，并将混沌轨迹序列升序排列，提取原始下标形成置换阵列。
+         *
+         * @param {number} x1 - 混沌初值种子 (0 < x1 < 1)。
+         * @param {number} n - 序列长度。
+         * @returns {{ positions: Int32Array, lastX: number }} 包含排序置换索引列表与末态混沌值的对象。
+         * @see Callers:
+         *  - `applyPicEncryptChaosRow`: Logistic 混沌映射行置乱。
+         *  - `applyPicEncryptChaos2D`: Logistic 混沌映射行列双通交织置乱。
+         */
+        function generateLogisticChaoticMap(x1, n) {
+            let x = (typeof x1 === "number" && x1 > 0 && x1 < 1) ? x1 : 0.6180339887;
+            const items = new Array(n);
+            items[0] = { val: x, idx: 0 };
+            for (let i = 1; i < n; ++i) {
+                x = 3.9999999 * x * (1 - x);
+                items[i] = { val: x, idx: i };
+            }
+            items.sort((a, b) => (a.val > b.val ? 1 : -1));
+            const positions = new Int32Array(n);
+            for (let i = 0; i < n; ++i) {
+                positions[i] = items[i].idx;
+            }
+            return { positions, lastX: x };
+        }
+
+        /**
+         * 应用 PicEncrypt 块级随机置乱混淆特效（BlockScramble）。
+         *
+         * 将画面按 32x32 分块，利用 MD5 密钥数组在水平与垂直轴向实施确定性双向非线性网格置乱。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {string} [key="PicEncrypt"] - 混淆密钥。
+         * @param {number} [xBlockCount=32] - 水平分块数量。
+         * @param {number} [yBlockCount=32] - 垂直分块数量。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyPicEncryptBlock(ctx, width, height, key = "PicEncrypt", xBlockCount = 32, yBlockCount = 32) {
+            if (width <= 0 || height <= 0) return;
+            const xArray = shuffleWithMd5Key(xBlockCount, key);
+            const yArray = shuffleWithMd5Key(yBlockCount, key);
+
+            const newWidth = (width % xBlockCount > 0) ? (width + xBlockCount - width % xBlockCount) : width;
+            const newHeight = (height % yBlockCount > 0) ? (height + yBlockCount - height % yBlockCount) : height;
+            const blockWidth = Math.floor(newWidth / xBlockCount);
+            const blockHeight = Math.floor(newHeight / yBlockCount);
+
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const src32 = new Uint32Array(imgData.data.buffer);
+            const dstImgData = ctx.createImageData(width, height);
+            const dst32 = new Uint32Array(dstImgData.data.buffer);
+
+            for (let i = 0; i < width; ++i) {
+                for (let j = 0; j < height; ++j) {
+                    let n = j;
+                    let m = (xArray[Math.floor(n / blockHeight) % xBlockCount] * blockWidth + i) % newWidth;
+                    m = xArray[Math.floor(m / blockWidth)] * blockWidth + (m % blockWidth);
+                    n = (yArray[Math.floor(m / blockWidth) % yBlockCount] * blockHeight + n) % newHeight;
+                    n = yArray[Math.floor(n / blockHeight)] * blockHeight + (n % blockHeight);
+                    dst32[i + j * width] = src32[(m % width) + (n % height) * width];
+                }
+            }
+            ctx.putImageData(dstImgData, 0, 0);
+        }
+
+        /**
+         * 应用 PicEncrypt 行像素置乱混淆特效（RowPixelScramble）。
+         *
+         * 每行内部以行号驱动 MD5 置换阵列进行相关性横向位移，呈现水平条形密码条纹纹理。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {string} [key="PicEncrypt"] - 混淆密钥。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyPicEncryptRowPixel(ctx, width, height, key = "PicEncrypt") {
+            if (width <= 0 || height <= 0) return;
+            const xArray = shuffleWithMd5Key(width, key);
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const src32 = new Uint32Array(imgData.data.buffer);
+            const dstImgData = ctx.createImageData(width, height);
+            const dst32 = new Uint32Array(dstImgData.data.buffer);
+
+            for (let i = 0; i < width; ++i) {
+                for (let j = 0; j < height; ++j) {
+                    const m = xArray[(xArray[j % width] + i) % width];
+                    dst32[i + j * width] = src32[m + j * width];
+                }
+            }
+            ctx.putImageData(dstImgData, 0, 0);
+        }
+
+        /**
+         * 应用 PicEncrypt 逐像素全局置乱混淆特效（PerPixelScramble）。
+         *
+         * 利用双轴独立 MD5 洗牌阵列将图像每一个像素映射至二维伪随机离散点，将画面彻底化为统计学白噪声。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {string} [key="PicEncrypt"] - 混淆密钥。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyPicEncryptPerPixel(ctx, width, height, key = "PicEncrypt") {
+            if (width <= 0 || height <= 0) return;
+            const xArray = shuffleWithMd5Key(width, key);
+            const yArray = shuffleWithMd5Key(height, key);
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const src32 = new Uint32Array(imgData.data.buffer);
+            const dstImgData = ctx.createImageData(width, height);
+            const dst32 = new Uint32Array(dstImgData.data.buffer);
+
+            for (let i = 0; i < width; ++i) {
+                for (let j = 0; j < height; ++j) {
+                    const m = xArray[(xArray[j % width] + i) % width];
+                    const n = yArray[(yArray[m % height] + j) % height];
+                    dst32[i + j * width] = src32[m + n * width];
+                }
+            }
+            ctx.putImageData(dstImgData, 0, 0);
+        }
+
+        /**
+         * 应用兼容 PicEncrypt 行模式的 Logistic 混沌映射置乱混淆特效（PicEncryptRowScramble）。
+         *
+         * 利用非线性动力学 Logistic 混沌映射迭代轨迹排序生成空间置换索引，执行逐行垂直条带混沌置乱。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number|string} [key=0.618] - 混沌系统初值浮点密钥 (0 < key < 1)。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyPicEncryptChaosRow(ctx, width, height, key = 0.618) {
+            if (width <= 0 || height <= 0) return;
+            const numKey = parseFloat(key);
+            const validKey = (!isNaN(numKey) && numKey > 0 && numKey < 1) ? numKey : 0.6180339887;
+            const { positions } = generateLogisticChaoticMap(validKey, width);
+
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const src32 = new Uint32Array(imgData.data.buffer);
+            const dstImgData = ctx.createImageData(width, height);
+            const dst32 = new Uint32Array(dstImgData.data.buffer);
+
+            for (let i = 0; i < width; ++i) {
+                const m = positions[i];
+                for (let j = 0; j < height; ++j) {
+                    dst32[i + j * width] = src32[m + j * width];
+                }
+            }
+            ctx.putImageData(dstImgData, 0, 0);
+        }
+
+        /**
+         * 应用兼容 PicEncrypt 行+列模式的 Logistic 混沌交织置乱混淆特效（PicEncryptRowColumnScramble）。
+         *
+         * 采用连续演化状态机，第一通执行行级自适应 Logistic 混沌置换，第二通执行列级自适应 Logistic 混沌置换，实现高强度二维交织混沌隐蔽。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @param {number|string} [key=0.618] - 混沌系统初值浮点密钥 (0 < key < 1)。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`
+         */
+        function applyPicEncryptChaos2D(ctx, width, height, key = 0.618) {
+            if (width <= 0 || height <= 0) return;
+            const numKey = parseFloat(key);
+            const validKey = (!isNaN(numKey) && numKey > 0 && numKey < 1) ? numKey : 0.6180339887;
+
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const src32 = new Uint32Array(imgData.data.buffer);
+            const temp32 = new Uint32Array(width * height);
+            const dstImgData = ctx.createImageData(width, height);
+            const dst32 = new Uint32Array(dstImgData.data.buffer);
+
+            // 第一通：逐行连续状态混沌置换
+            let x = validKey;
+            for (let j = 0; j < height; ++j) {
+                const { positions, lastX } = generateLogisticChaoticMap(x, width);
+                x = lastX;
+                const offset = j * width;
+                for (let i = 0; i < width; ++i) {
+                    temp32[i + offset] = src32[positions[i] + offset];
+                }
+            }
+
+            // 第二通：逐列连续状态混沌置换
+            x = validKey;
+            for (let i = 0; i < width; ++i) {
+                const { positions, lastX } = generateLogisticChaoticMap(x, height);
+                x = lastX;
+                for (let j = 0; j < height; ++j) {
+                    dst32[i + j * width] = temp32[i + positions[j] * width];
+                }
             }
 
             ctx.putImageData(dstImgData, 0, 0);
@@ -2517,7 +2904,27 @@
             // 2. 混淆特效处理流水线
             switch (coverEffectsConfig.confusion) {
                 case 'gilbert': {
-                    applyGilbertConfusion(ctx, width, height);
+                    applyGilbertConfusion(ctx, width, height, coverEffectsConfig.scrambleKey);
+                    break;
+                }
+                case 'pic_block': {
+                    applyPicEncryptBlock(ctx, width, height, coverEffectsConfig.scrambleKey);
+                    break;
+                }
+                case 'pic_row': {
+                    applyPicEncryptRowPixel(ctx, width, height, coverEffectsConfig.scrambleKey);
+                    break;
+                }
+                case 'pic_pixel': {
+                    applyPicEncryptPerPixel(ctx, width, height, coverEffectsConfig.scrambleKey);
+                    break;
+                }
+                case 'pic_chaos_row': {
+                    applyPicEncryptChaosRow(ctx, width, height, coverEffectsConfig.scrambleKey);
+                    break;
+                }
+                case 'pic_chaos_2d': {
+                    applyPicEncryptChaos2D(ctx, width, height, coverEffectsConfig.scrambleKey);
                     break;
                 }
                 case 'pixelate': {
@@ -3434,6 +3841,8 @@
             const selectConfusion = document.getElementById("select-cover-confusion");
             const boxPixelSize = document.getElementById("box-pixel-size");
             const selectPixelSize = document.getElementById("select-pixel-size");
+            const boxScrambleKey = document.getElementById("box-scramble-key");
+            const inputScrambleKey = document.getElementById("input-scramble-key");
             const selectBlur = document.getElementById("select-cover-blur");
             const inputText = document.getElementById("input-cover-text");
             const selectTextPos = document.getElementById("select-cover-text-pos");
@@ -3447,8 +3856,37 @@
             selectConfusion.addEventListener("change", (e) => {
                 coverEffectsConfig.confusion = e.target.value;
                 boxPixelSize.style.display = (coverEffectsConfig.confusion === 'pixelate') ? "flex" : "none";
+                const isScrambleWithKey = ['gilbert', 'pic_block', 'pic_row', 'pic_pixel', 'pic_chaos_row', 'pic_chaos_2d'].includes(coverEffectsConfig.confusion);
+                if (boxScrambleKey) {
+                    boxScrambleKey.style.display = isScrambleWithKey ? "flex" : "none";
+                }
+                if (isScrambleWithKey && inputScrambleKey) {
+                    if (coverEffectsConfig.confusion === 'gilbert') {
+                        if (!inputScrambleKey.value || inputScrambleKey.value === 'PicEncrypt' || inputScrambleKey.value === '0.618') {
+                            inputScrambleKey.value = "1";
+                            coverEffectsConfig.scrambleKey = "1";
+                        }
+                    } else if (coverEffectsConfig.confusion === 'pic_chaos_row' || coverEffectsConfig.confusion === 'pic_chaos_2d') {
+                        if (!inputScrambleKey.value || inputScrambleKey.value === 'PicEncrypt' || inputScrambleKey.value === '1') {
+                            inputScrambleKey.value = "0.618";
+                            coverEffectsConfig.scrambleKey = "0.618";
+                        }
+                    } else {
+                        if (!inputScrambleKey.value || inputScrambleKey.value === '1' || inputScrambleKey.value === '0.618') {
+                            inputScrambleKey.value = "PicEncrypt";
+                            coverEffectsConfig.scrambleKey = "PicEncrypt";
+                        }
+                    }
+                }
                 updateCoverLivePreview();
             });
+
+            if (inputScrambleKey) {
+                inputScrambleKey.addEventListener("input", (e) => {
+                    coverEffectsConfig.scrambleKey = e.target.value;
+                    updateCoverLivePreview();
+                });
+            }
 
             selectPixelSize.addEventListener("change", (e) => {
                 coverEffectsConfig.pixelSize = parseInt(e.target.value, 10) || 16;
@@ -5261,6 +5699,11 @@
                 if (coverEffectsConfig.confusion !== 'none') {
                     const cMap = {
                         gilbert: '小番茄曲线',
+                        pic_block: 'Pic块置乱',
+                        pic_row: 'Pic行置乱',
+                        pic_pixel: 'Pic逐像素置乱',
+                        pic_chaos_row: 'Pic混沌行置乱',
+                        pic_chaos_2d: 'Pic混沌二维置乱',
                         pixelate: '马赛克',
                         invert: '反色',
                         grayscale: '灰度',
