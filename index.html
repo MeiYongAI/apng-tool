@@ -1812,10 +1812,17 @@
             .section-box {
                 padding: 12px;
             }
-            .section-header {
+            .cover-setting-box .section-header {
                 flex-direction: column;
                 align-items: stretch;
                 gap: 10px;
+            }
+            .cover-preview-ratio-badge,
+            .history-badge {
+                width: fit-content;
+                max-width: fit-content;
+                align-self: center;
+                flex-shrink: 0;
             }
             .tab-group {
                 width: 100%;
@@ -2017,18 +2024,14 @@
                 width: calc(100% + 24px);
                 box-sizing: border-box;
             }
-            .action-dock-desc {
+            .action-dock-info {
                 display: none;
-            }
-            .action-dock-title {
-                font-size: 12.5px;
-                text-align: center;
             }
             .btn-generate.action-dock-btn {
                 width: 100%;
                 min-width: 0;
-                padding: 11px 16px;
-                font-size: 14px;
+                padding: 12px 16px;
+                font-size: 14.5px;
             }
             .preview-box {
                 padding: 10px;
@@ -2159,7 +2162,7 @@
     </header>
     <div class="container">
         <p class="description">
-            首帧预览伪装，点开播放动图与视频 · 纯本地隐私安全处理
+            基于 APNG 动图特性的图片伪装制作工具
         </p>
 
         <div class="workbench-grid">
@@ -2462,7 +2465,7 @@
         <!-- 稳健操作底栏 (Action Dock) -->
         <div class="action-dock">
             <div class="action-dock-info">
-                <div class="action-dock-title">合成状态概览</div>
+                <div class="action-dock-title">制作与导出</div>
                 <div id="action-dock-desc" class="action-dock-desc">请在右侧添加至少 1 个隐藏帧以开始制作</div>
             </div>
             <button id="btn-generate" class="btn-generate action-dock-btn" disabled>请添加至少 1 个隐藏帧</button>
