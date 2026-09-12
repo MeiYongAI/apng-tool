@@ -2007,21 +2007,19 @@
                 padding-top: 4px;
             }
 
-            /* 操作底栏移动端贴底与安全区 */
+            /* 操作底栏移动端固定在表单底部静态位置，不随屏幕浮动滚动 */
             .action-dock {
-                position: sticky;
-                bottom: 0;
-                z-index: 95;
+                position: static;
                 flex-direction: column;
                 align-items: stretch;
                 gap: 8px;
-                padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)) 14px;
-                background: var(--card-bg);
-                border-radius: 12px 12px 0 0;
-                border-bottom: none;
-                box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.22);
-                margin: 20px -12px 0 -12px;
-                width: calc(100% + 24px);
+                padding: 12px;
+                background: var(--card-inner-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                box-shadow: none;
+                margin: 16px 0 0 0;
+                width: 100%;
                 box-sizing: border-box;
             }
             .action-dock-info {
