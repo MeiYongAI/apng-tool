@@ -1390,6 +1390,7 @@
                         <label for="select-cover-confusion">混淆方式：</label>
                         <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
                             <option value="none" selected>不混淆（保持原样）</option>
+                            <option value="gilbert">小番茄空间填充曲线 (Gilbert Curve)</option>
                             <option value="pixelate">马赛克像素化</option>
                             <option value="rgb_split">RGB 色散重影 (赛博朋克)</option>
                             <option value="scanline">CRT 扫描线与错位拉丝</option>
@@ -1701,7 +1702,7 @@
          * 封面修饰与混淆特效配置。
          */
         const coverEffectsConfig = {
-            confusion: 'none', // 'none' | 'pixelate' | 'invert' | 'grayscale' | 'noise' | 'rgb_split' | 'scanline' | 'jigsaw' | 'swirl' | 'halftone' | 'ascii' | 'edge' | 'caution'
+            confusion: 'none', // 'none' | 'gilbert' | 'pixelate' | 'invert' | 'grayscale' | 'noise' | 'rgb_split' | 'scanline' | 'jigsaw' | 'swirl' | 'halftone' | 'ascii' | 'edge' | 'caution'
             pixelSize: 16,
             blurRadius: 0,
             text: '',
@@ -2025,6 +2026,122 @@
                 }
                 ctx.drawImage(sourceImg, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
             }
+        }
+
+        /**
+         * 生成覆盖指定任意长宽矩形网格的广义希尔伯特（Gilbert）二维空间填充曲线索引序列。
+         *
+         * 采用递归空间二分细分算法在任意长宽尺寸 (width x height) 的网格上生成保持局部空间连续性的离散一维映射。
+         * 为保证极致渲染性能，直接分配紧凑的 Int32Array 缓冲区存储一维像素偏移 (y * width + x)，
+         * 避免频繁构建二维坐标对象带来的大量垃圾回收开销。
+         *
+         * @param {number} width - 画布矩形宽度（像素）。
+         * @param {number} height - 画布矩形高度（像素）。
+         * @returns {Int32Array} 按曲线遍历顺序存储的一维像素索引列表。
+         * @see Callers:
+         *  - `applyGilbertConfusion`: 执行小番茄空间填充曲线混淆时调用。
+         */
+        function generateGilbertCurveIndices(width, height) {
+            const total = width * height;
+            const indices = new Int32Array(total);
+            let ptr = 0;
+
+            function generate2d(x, y, ax, ay, bx, by) {
+                const w = Math.abs(ax + ay);
+                const h = Math.abs(bx + by);
+                const dax = Math.sign(ax);
+                const day = Math.sign(ay);
+                const dbx = Math.sign(bx);
+                const dby = Math.sign(by);
+
+                if (h === 1) {
+                    for (let i = 0; i < w; i++) {
+                        indices[ptr++] = y * width + x;
+                        x += dax;
+                        y += day;
+                    }
+                    return;
+                }
+                if (w === 1) {
+                    for (let i = 0; i < h; i++) {
+                        indices[ptr++] = y * width + x;
+                        x += dbx;
+                        y += dby;
+                    }
+                    return;
+                }
+
+                let ax2 = Math.floor(ax / 2);
+                let ay2 = Math.floor(ay / 2);
+                let bx2 = Math.floor(bx / 2);
+                let by2 = Math.floor(by / 2);
+                const w2 = Math.abs(ax2 + ay2);
+                const h2 = Math.abs(bx2 + by2);
+
+                if (2 * w > 3 * h) {
+                    if ((w2 % 2) && (w > 2)) {
+                        ax2 += dax;
+                        ay2 += day;
+                    }
+                    generate2d(x, y, ax2, ay2, bx, by);
+                    generate2d(x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by);
+                } else {
+                    if ((h2 % 2) && (h > 2)) {
+                        bx2 += dbx;
+                        by2 += dby;
+                    }
+                    generate2d(x, y, bx2, by2, ax2, ay2);
+                    generate2d(x + bx2, y + by2, ax, ay, bx - bx2, by - by2);
+                    generate2d(
+                        x + (ax - dax) + (bx2 - dbx),
+                        y + (ay - day) + (by2 - dby),
+                        -bx2,
+                        -by2,
+                        -(ax - ax2),
+                        -(ay - ay2)
+                    );
+                }
+            }
+
+            if (width >= height) {
+                generate2d(0, 0, width, 0, 0, height);
+            } else {
+                generate2d(0, 0, 0, height, width, 0);
+            }
+
+            return indices;
+        }
+
+        /**
+         * 应用基于广义希尔伯特（Gilbert）空间填充曲线与黄金分割位移的像素置乱混淆特效（小番茄图片混淆）。
+         *
+         * 基于空间填充曲线在离散网格中的局部空间连续性，利用黄金分割比例偏移置换一维曲线坐标，
+         * 使得画面在视觉上高度打乱破碎，而在压缩与缩略图场景下仍能完好保持局部色彩分布。
+         *
+         * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
+         * @param {number} width - 画布宽度。
+         * @param {number} height - 画布高度。
+         * @returns {void}
+         * @see Callers:
+         *  - `applyCoverPostEffects`: 封面后处理特效渲染管线。
+         */
+        function applyGilbertConfusion(ctx, width, height) {
+            if (width <= 0 || height <= 0) return;
+            const totalPixels = width * height;
+            const curve = generateGilbertCurveIndices(width, height);
+            const imgData = ctx.getImageData(0, 0, width, height);
+            const src32 = new Uint32Array(imgData.data.buffer);
+            const dstImgData = ctx.createImageData(width, height);
+            const dst32 = new Uint32Array(dstImgData.data.buffer);
+
+            const offset = Math.round(((Math.sqrt(5) - 1) / 2) * totalPixels);
+            for (let i = 0; i < totalPixels; i++) {
+                const srcIdx = curve[i];
+                const dstIdx = curve[(i + offset) % totalPixels];
+                dst32[dstIdx] = src32[srcIdx];
+            }
+
+            ctx.putImageData(dstImgData, 0, 0);
         }
 
         /**
@@ -2399,6 +2516,10 @@
 
             // 2. 混淆特效处理流水线
             switch (coverEffectsConfig.confusion) {
+                case 'gilbert': {
+                    applyGilbertConfusion(ctx, width, height);
+                    break;
+                }
                 case 'pixelate': {
                     const blockSize = Math.max(4, coverEffectsConfig.pixelSize || 16);
                     const smallW = Math.max(1, Math.floor(width / blockSize));
@@ -5139,6 +5260,7 @@
                 const effectsTags = [];
                 if (coverEffectsConfig.confusion !== 'none') {
                     const cMap = {
+                        gilbert: '小番茄曲线',
                         pixelate: '马赛克',
                         invert: '反色',
                         grayscale: '灰度',
