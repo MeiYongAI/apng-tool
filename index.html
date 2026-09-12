@@ -2451,6 +2451,7 @@
                             </div>
                         </div>
                         <div class="batch-toolbar-right">
+                            <button id="btn-pingpong-frames" class="btn-icon" type="button" title="正放后无缝倒放衔接，消除循环顿挫感">⇋ 往返循环</button>
                             <button id="btn-reverse-frames" class="btn-icon" type="button" title="颠倒当前帧序列顺序">⇄ 倒序</button>
                             <button id="btn-clear-all-frames" class="btn-icon danger" type="button">清空</button>
                         </div>
@@ -6289,6 +6290,43 @@
         }
 
         /**
+         * 生成往返无缝循环（乒乓 / Ping-Pong）帧序列。
+         *
+         * 在当前隐藏帧序列末尾追加不含首尾转折重叠点的倒序回放帧，
+         * 实现首尾顺滑衔接的呼吸式无缝循环播放，彻底消除动作硬切跳回首帧时的顿挫停顿感。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:btnPingpongFrames.onclick`
+         */
+        function generatePingPongFrames() {
+            if (hiddenFrames.length < 2) {
+                showToast("至少需要 2 个隐藏帧才能生成往返循环", "warning");
+                return;
+            }
+
+            const bounceFrames = [];
+            for (let i = hiddenFrames.length - 2; i >= 1; i--) {
+                const orig = hiddenFrames[i];
+                bounceFrames.push({
+                    ...orig,
+                    id: `frame_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+                    title: `${orig.title} (回放)`
+                });
+            }
+
+            if (bounceFrames.length === 0) {
+                showToast("当前帧数仅 2 帧，已为自然往返状态", "info");
+                return;
+            }
+
+            hiddenFrames.push(...bounceFrames);
+            renderHiddenFrameList();
+            checkReadyState();
+            showToast(`已生成往返无缝循环序列（追加 ${bounceFrames.length} 个回放帧）`, "success");
+        }
+
+        /**
          * 删除单张隐藏帧。
          *
          * @param {number} index - 待删除帧索引。
@@ -7440,6 +7478,7 @@
             });
             document.getElementById("btn-clear-all-frames").addEventListener("click", clearAllFrames);
             document.getElementById("btn-reverse-frames").addEventListener("click", reverseFramesOrder);
+            document.getElementById("btn-pingpong-frames").addEventListener("click", generatePingPongFrames);
 
             // 输出分辨率控件初始化
             setupResolutionControls();
