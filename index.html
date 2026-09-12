@@ -286,15 +286,31 @@
             gap: 24px;
             align-items: start;
         }
-        @media (max-width: 960px) {
-            .workbench-grid {
-                grid-template-columns: 1fr;
-            }
-        }
         .workbench-column {
             display: flex;
             flex-direction: column;
             gap: 20px;
+        }
+        @media (max-width: 960px) {
+            .workbench-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .workbench-column {
+                display: contents;
+            }
+            .cover-setting-box {
+                order: 1;
+            }
+            .preview-hero-box {
+                order: 2;
+            }
+            .frame-manage-box {
+                order: 3;
+            }
+            .output-spec-box {
+                order: 4;
+            }
         }
         .section-box {
             background: var(--card-inner-bg);
@@ -1046,18 +1062,7 @@
             font-size: 14.5px;
             flex-shrink: 0;
         }
-        @media (max-width: 680px) {
-            .action-dock {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 14px;
-                padding: 16px;
-            }
-            .btn-generate.action-dock-btn {
-                width: 100%;
-                min-width: 0;
-            }
-        }
+
         .btn-generate:hover:not(:disabled) {
             background: var(--primary-hover);
         }
@@ -1826,43 +1831,129 @@
                 flex-wrap: wrap;
             }
             .frame-list-wrapper {
-                max-height: 320px;
+                max-height: 380px;
+                -webkit-overflow-scrolling: touch;
             }
             .frame-item {
-                flex-wrap: wrap;
-                padding: 10px;
-                gap: 8px 10px;
+                flex-wrap: nowrap;
+                padding: 6px 10px;
+                gap: 8px;
+                align-items: center;
+                border-radius: 6px;
+            }
+            .frame-drag-handle {
+                font-size: 14px;
+                padding: 0 2px;
+                color: var(--text-sub);
             }
             .frame-index {
-                width: 20px;
+                width: 18px;
+                font-size: 11px;
+                text-align: center;
+                flex-shrink: 0;
             }
             .frame-thumb {
-                width: 40px;
-                height: 40px;
+                width: 34px;
+                height: 34px;
+                border-radius: 4px;
+                flex-shrink: 0;
             }
             .frame-meta {
-                flex: 1 1 calc(100% - 75px);
-            }
-            .frame-delay-control {
                 flex: 1;
-                margin-left: 28px;
-            }
-            .frame-actions {
-                margin-left: auto;
-            }
-            .batch-toolbar {
+                min-width: 0;
+                display: flex;
                 flex-direction: column;
-                align-items: stretch;
-                gap: 8px;
+                justify-content: center;
+                gap: 2px;
             }
-            .batch-inputs {
+            .frame-name {
+                font-size: 12px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: 130px;
+            }
+            .frame-size {
+                font-size: 10px;
+                color: var(--text-sub);
+            }
+            .frame-duration-pill {
+                flex-shrink: 0;
+                padding: 2px 6px;
+                height: 26px;
+            }
+            .frame-duration-input {
+                width: 36px;
+                font-size: 11px;
+            }
+            .frame-duration-unit {
+                font-size: 10px;
+            }
+            .frame-delete-btn {
+                opacity: 0.55;
+                font-size: 14px;
+                padding: 4px;
+                flex-shrink: 0;
+            }
+
+            /* 批量控制工具栏移动端双行优雅中枢 */
+            .batch-toolbar {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 8px 10px;
+                background: var(--card-inner-bg);
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+            }
+            .batch-toolbar-left {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+            }
+            .speed-presets-group {
                 width: 100%;
                 justify-content: space-between;
+                box-sizing: border-box;
             }
-            .batch-toolbar button {
+            .btn-speed-preset {
+                flex: 1;
+                text-align: center;
+                padding: 4px 2px;
+            }
+            .batch-inputs-group {
                 width: 100%;
-                padding: 7px 10px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 6px;
             }
+            .batch-input-composite {
+                flex: 1;
+                display: flex;
+            }
+            .batch-delay-number {
+                flex: 1;
+                min-width: 40px;
+            }
+            .batch-toolbar-right {
+                width: 100%;
+                display: flex;
+                justify-content: flex-end;
+                gap: 8px;
+                border-top: 1px dashed var(--border-color);
+                padding-top: 6px;
+            }
+            .batch-toolbar-right button {
+                flex: 1;
+                height: 26px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+            }
+
             .controls {
                 padding: 12px;
             }
@@ -1875,8 +1966,68 @@
             .control-group .custom-select-wrapper {
                 width: 100%;
             }
+
+            /* 封面文字控制面板网格化 */
             #box-cover-text-opts {
                 padding-left: 0 !important;
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            #box-cover-text-opts > div {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 4px;
+            }
+            #box-cover-text-opts > div label {
+                font-size: 11px;
+                white-space: nowrap;
+                color: var(--text-sub);
+                flex-shrink: 0;
+            }
+            #box-cover-text-opts > div .custom-select-wrapper {
+                flex: 1;
+                min-width: 0;
+            }
+            #box-cover-text-custom-bg {
+                grid-column: 1 / -1;
+                display: none;
+                justify-content: center;
+                align-items: center;
+                gap: 10px;
+                padding-top: 4px;
+            }
+
+            /* 操作底栏移动端贴底与安全区 */
+            .action-dock {
+                position: sticky;
+                bottom: 0;
+                z-index: 95;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+                padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)) 14px;
+                background: var(--card-bg);
+                border-radius: 12px 12px 0 0;
+                border-bottom: none;
+                box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.22);
+                margin: 20px -12px 0 -12px;
+                width: calc(100% + 24px);
+                box-sizing: border-box;
+            }
+            .action-dock-desc {
+                display: none;
+            }
+            .action-dock-title {
+                font-size: 12.5px;
+                text-align: center;
+            }
+            .btn-generate.action-dock-btn {
+                width: 100%;
+                min-width: 0;
+                padding: 11px 16px;
+                font-size: 14px;
             }
             .preview-box {
                 padding: 10px;
@@ -2013,7 +2164,7 @@
             <!-- 左栏：控制与参数工坊 -->
             <div class="workbench-column left-column">
                 <!-- 1. 封面图设置卡片 (不含画框) -->
-                <div class="section-box">
+                <div class="section-box cover-setting-box">
                     <div class="section-header">
                         <div class="section-title">1. 封面设置</div>
                         <div class="tab-group">
@@ -2194,7 +2345,7 @@
                 </div>
 
                 <!-- 2. 全局输出规格卡片 (融合进左栏底部) -->
-                <div class="section-box">
+                <div class="section-box output-spec-box">
                     <div class="section-header">
                         <div class="section-title">2. 输出规格与适配</div>
                     </div>
