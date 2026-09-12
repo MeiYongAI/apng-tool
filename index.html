@@ -874,25 +874,95 @@
             color: #ffffff;
             font-weight: 600;
         }
-        .batch-inputs {
-            display: flex;
+        .batch-inputs-group {
+            display: inline-flex;
             align-items: center;
             gap: 6px;
-            flex-wrap: wrap;
         }
-        .frame-delay-input {
-            width: 58px;
+        .batch-inputs-label {
+            font-size: 11px;
+            color: var(--text-sub);
+            user-select: none;
+            white-space: nowrap;
+        }
+        .batch-input-composite {
+            display: inline-flex;
+            align-items: center;
+            height: 26px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
+            border-radius: 6px;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .batch-input-composite:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .batch-delay-number {
+            width: 46px;
+            height: 100%;
+            border: none;
+            background: transparent;
             color: var(--text-main);
-            padding: 3px 6px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 0 6px;
+            font-size: 11.5px;
             text-align: right;
             outline: none;
+            box-sizing: border-box;
+            -moz-appearance: textfield;
         }
-        .frame-delay-input:focus {
-            border-color: var(--primary);
+        .batch-delay-number::-webkit-outer-spin-button,
+        .batch-delay-number::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .batch-unit-wrap {
+            display: inline-flex;
+            align-items: center;
+            height: 100%;
+            border-left: 1px solid var(--border-color);
+        }
+        .batch-unit-wrap .custom-select-wrapper {
+            height: 100%;
+            display: inline-flex;
+            align-items: center;
+        }
+        .batch-unit-wrap .custom-select-trigger {
+            border: none;
+            background: transparent;
+            min-height: 24px;
+            height: 24px;
+            padding: 0 6px;
+            font-size: 11px;
+            gap: 4px;
+            border-radius: 0;
+            box-shadow: none !important;
+        }
+        .batch-unit-wrap .custom-select-trigger:hover {
+            background: var(--card-sub-bg);
+        }
+        .btn-batch-apply {
+            height: 100%;
+            border: none;
+            border-left: 1px solid var(--border-color);
+            background: var(--card-sub-bg);
+            color: var(--text-main);
+            padding: 0 9px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 0 5px 5px 0;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            outline: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-batch-apply:hover {
+            background: var(--primary);
+            color: #ffffff;
         }
 
         /* 全局配置控制 */
@@ -2208,14 +2278,18 @@
                                 <button type="button" class="btn-speed-preset" data-speed="1.5">1.5x</button>
                                 <button type="button" class="btn-speed-preset" data-speed="2.0">2.0x</button>
                             </div>
-                            <div class="batch-inputs">
-                                <span>统一:</span>
-                                <input type="number" id="input-batch-delay" class="frame-delay-input" value="100" min="10" max="60000" step="any" />
-                                <select id="select-delay-unit" style="background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 5px; border-radius: 4px; font-size: 11.5px; outline: none; cursor: pointer;">
-                                    <option value="ms" selected>ms</option>
-                                    <option value="s">s</option>
-                                </select>
-                                <button id="btn-apply-batch-delay" class="btn-icon" type="button">应用</button>
+                            <div class="batch-inputs-group">
+                                <span class="batch-inputs-label">统一时长:</span>
+                                <div class="batch-input-composite">
+                                    <input type="number" id="input-batch-delay" class="batch-delay-number" value="100" min="10" max="60000" step="any" placeholder="100" />
+                                    <div class="batch-unit-wrap">
+                                        <select id="select-delay-unit">
+                                            <option value="ms" selected>ms</option>
+                                            <option value="s">s</option>
+                                        </select>
+                                    </div>
+                                    <button id="btn-apply-batch-delay" class="btn-batch-apply" type="button">应用</button>
+                                </div>
                             </div>
                         </div>
                         <div class="batch-toolbar-right">
@@ -5956,7 +6030,7 @@
                 // 现代化单帧时长胶囊组件 (Duration Pill)
                 const delayPill = document.createElement("div");
                 delayPill.className = "frame-duration-pill";
-                delayPill.title = "点击直接修改单帧停留时长（无生硬步长限制）";
+                delayPill.title = "点击修改单帧停留时长";
 
                 const delayInput = document.createElement("input");
                 delayInput.type = "number";
