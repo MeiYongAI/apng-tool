@@ -47,7 +47,7 @@
 ## 🚀 在线使用与本地运行
 
 - **在线体验**：[https://meiyongai.github.io/apng-tool/](https://meiyongai.github.io/apng-tool/)
-- **本地运行**：直接使用现代浏览器（推荐 Chrome / Edge）打开 `index.html` 或 `apng_disguise_tool.html` 即可。
+- **本地运行**：直接使用现代浏览器（推荐 Chrome / Edge）打开 `index.html` 即可。
 
 ---
 

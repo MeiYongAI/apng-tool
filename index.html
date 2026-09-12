@@ -32,9 +32,8 @@
             --danger: #ef4444;
             --danger-hover: #dc2626;
             --warning: #f59e0b;
-            --scrollbar-track: rgba(15, 23, 42, 0.6);
-            --scrollbar-thumb: #334155;
-            --scrollbar-thumb-hover: #475569;
+            --scrollbar-thumb: rgba(148, 163, 184, 0.35);
+            --scrollbar-thumb-hover: rgba(148, 163, 184, 0.65);
             --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
             --shadow-modal: 0 20px 30px rgba(0, 0, 0, 0.6);
             --theme-toggle-bg: #111827;
@@ -55,9 +54,8 @@
             --danger: #ef4444;
             --danger-hover: #dc2626;
             --warning: #d97706;
-            --scrollbar-track: rgba(226, 232, 240, 0.85);
-            --scrollbar-thumb: #94a3b8;
-            --scrollbar-thumb-hover: #64748b;
+            --scrollbar-thumb: rgba(100, 116, 139, 0.35);
+            --scrollbar-thumb-hover: rgba(100, 116, 139, 0.65);
             --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
             --shadow-modal: 0 20px 30px rgba(0, 0, 0, 0.18);
             --theme-toggle-bg: #e2e8f0;
@@ -67,24 +65,37 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            scrollbar-width: thin;
-            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+        }
+        html {
+            overflow-y: auto;
+            overflow-y: overlay;
+        }
+        body {
+            overflow: visible;
         }
         ::-webkit-scrollbar {
-            width: 7px;
-            height: 7px;
+            width: 6px;
+            height: 6px;
+            background-color: transparent;
         }
         ::-webkit-scrollbar-track {
-            background: var(--scrollbar-track);
-            border-radius: 4px;
+            background-color: transparent;
         }
         ::-webkit-scrollbar-thumb {
-            background: var(--scrollbar-thumb);
-            border-radius: 4px;
-            transition: background 0.2s ease;
+            background-color: transparent;
+            border-radius: 9999px;
+            transition: background-color 0.25s ease;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--scrollbar-thumb-hover);
+        html:hover::-webkit-scrollbar-thumb,
+        html.is-scrolling::-webkit-scrollbar-thumb,
+        .frame-list-wrapper:hover::-webkit-scrollbar-thumb,
+        .frame-list-wrapper.is-scrolling::-webkit-scrollbar-thumb,
+        .modal-body:hover::-webkit-scrollbar-thumb,
+        .modal-body.is-scrolling::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thumb);
+        }
+        ::-webkit-scrollbar-thumb:active {
+            background-color: var(--scrollbar-thumb-hover);
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -94,71 +105,173 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 32px 16px;
+            padding: 0 0 32px 0;
             transition: background-color 0.25s ease, color 0.25s ease;
         }
-        .container {
+        /* 全局吸顶顶栏 */
+        .site-header {
+            position: sticky;
+            top: 0;
+            left: 0;
             width: 100%;
+            z-index: 1000;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+        [data-theme="dark"] .site-header {
+            background: rgba(15, 23, 42, 0.88);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+        }
+        [data-theme="light"] .site-header {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+        }
+        .header-inner {
             max-width: 1240px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: inherit;
+            user-select: none;
+            transition: opacity 0.2s ease;
+        }
+        .brand-link:hover {
+            opacity: 0.9;
+        }
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .brand-link:hover .brand-logo {
+            transform: scale(1.05) rotate(-2deg);
+        }
+        .brand-meta {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.2;
+        }
+        .brand-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .brand-title span {
+            color: var(--primary);
+            font-weight: 800;
+        }
+        .brand-desc {
+            font-size: 12px;
+            color: var(--text-sub);
+            font-weight: 400;
+            margin-top: 2px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        /* 快捷主题切换按钮 */
+        .quick-theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--theme-toggle-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            outline: none;
+        }
+        .quick-theme-toggle:hover {
+            background: var(--card-bg);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+        .theme-icon-slot {
+            position: relative;
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .theme-icon-sun, .theme-icon-moon {
+            position: absolute;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.25s ease;
+        }
+        [data-theme="dark"] .theme-icon-sun {
+            transform: rotate(-90deg) scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+        [data-theme="dark"] .theme-icon-moon {
+            transform: rotate(0deg) scale(1);
+            opacity: 1;
+            color: #38bdf8;
+        }
+        [data-theme="light"] .theme-icon-sun {
+            transform: rotate(0deg) scale(1);
+            opacity: 1;
+            color: #f59e0b;
+        }
+        [data-theme="light"] .theme-icon-moon {
+            transform: rotate(90deg) scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .header-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: var(--theme-toggle-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-sub);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .header-icon-btn:hover {
+            color: var(--text-main);
+            border-color: var(--primary);
+            background: var(--card-bg);
+        }
+        .container {
+            width: calc(100% - 32px);
+            max-width: 1200px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 28px;
             box-shadow: var(--shadow-main);
-            margin-bottom: 24px;
+            margin: 24px auto 20px auto;
             transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
-        }
-        .header-bar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            gap: 16px;
-        }
-        .header-title-wrap {
-            flex: 1;
-            text-align: center;
-        }
-        h1 {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--text-main);
-            line-height: 1.3;
-        }
-        .theme-switcher {
-            display: inline-flex;
-            background: var(--theme-toggle-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 3px;
-            gap: 2px;
-            user-select: none;
-            flex-shrink: 0;
-            transition: background-color 0.25s ease, border-color 0.25s ease;
-        }
-        .theme-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-sub);
-            padding: 5px 10px;
-            font-size: 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            line-height: 1;
-        }
-        .theme-btn:hover {
-            color: var(--text-main);
-            background: var(--theme-toggle-btn-hover);
-        }
-        .theme-btn.active {
-            background: var(--card-bg);
-            color: var(--primary);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-            font-weight: 600;
         }
         .description {
             color: var(--text-sub);
@@ -167,17 +280,21 @@
             margin-bottom: 24px;
             line-height: 1.5;
         }
-        .grid {
+        .workbench-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
             gap: 24px;
             align-items: start;
-            margin-bottom: 24px;
         }
-        @media (max-width: 920px) {
-            .grid {
+        @media (max-width: 960px) {
+            .workbench-grid {
                 grid-template-columns: 1fr;
             }
+        }
+        .workbench-column {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
         .section-box {
             background: var(--card-inner-bg);
@@ -323,13 +440,13 @@
         }
         .cover-preview-stage {
             width: 100%;
-            height: 120px;
+            height: 190px;
             background-color: var(--card-sub-bg);
             background-image: 
-                linear-gradient(45deg, rgba(128, 128, 128, 0.08) 25%, transparent 25%),
-                linear-gradient(-45deg, rgba(128, 128, 128, 0.08) 25%, transparent 25%),
-                linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.08) 75%),
-                linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.08) 75%);
+                linear-gradient(45deg, rgba(128, 128, 128, 0.2) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(128, 128, 128, 0.2) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.2) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.2) 75%);
             background-size: 16px 16px;
             background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
             border: 1px solid var(--border-color);
@@ -383,10 +500,10 @@
             background: var(--card-sub-bg);
             border: 1px solid var(--border-color);
             color: var(--text-main);
-            padding: 8px 12px;
+            padding: 8px 10px;
             border-radius: 6px;
-            font-size: 14px;
-            width: 110px;
+            font-size: 13px;
+            width: 135px;
             text-transform: uppercase;
         }
         .preset-colors {
@@ -405,9 +522,31 @@
         .color-swatch:hover {
             transform: scale(1.15);
         }
+        .color-swatch.transparent {
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(45deg, #94a3b8 25%, transparent 25%),
+                linear-gradient(-45deg, #94a3b8 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #94a3b8 75%),
+                linear-gradient(-45deg, transparent 75%, #94a3b8 75%);
+            background-size: 8px 8px;
+            background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
+            position: relative;
+            overflow: hidden;
+        }
+        .color-swatch.transparent::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -20%;
+            width: 140%;
+            height: 2px;
+            background: #ef4444;
+            transform: rotate(-45deg);
+        }
         .color-preview-box {
             width: 100%;
-            height: 80px;
+            height: 72px;
             border-radius: 6px;
             border: 1px solid var(--border-color);
             display: flex;
@@ -415,7 +554,62 @@
             justify-content: center;
             font-size: 13px;
             font-weight: 500;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+            background-color: var(--card-sub-bg);
+            background-image: 
+                linear-gradient(45deg, rgba(128, 128, 128, 0.15) 25%, transparent 25%),
+                linear-gradient(-45deg, rgba(128, 128, 128, 0.15) 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, rgba(128, 128, 128, 0.15) 75%),
+                linear-gradient(-45deg, transparent 75%, rgba(128, 128, 128, 0.15) 75%);
+            background-size: 14px 14px;
+            background-position: 0 0, 0 7px, 7px -7px, -7px 0px;
+        }
+
+        /* 封面底图不透明度控件 */
+        .cover-opacity-control {
+            margin-top: 14px;
+            padding: 10px 14px;
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+        }
+        .cover-opacity-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .cover-opacity-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            max-width: 380px;
+        }
+        .cover-opacity-slider {
+            flex: 1;
+            height: 6px;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        .cover-opacity-val {
+            font-size: 12px;
+            font-family: monospace;
+            font-weight: 600;
+            color: var(--text-main);
+            min-width: 44px;
+            text-align: right;
+            user-select: none;
         }
 
         .loading-bar-wrapper {
@@ -437,6 +631,7 @@
             gap: 8px;
             max-height: 280px;
             overflow-y: auto;
+            overflow-y: overlay;
             padding-right: 4px;
         }
         .frame-item {
@@ -510,38 +705,100 @@
             font-size: 11px;
             color: var(--text-sub);
         }
-        .frame-delay-control {
-            display: flex;
+        /* 彻底隐藏原生数字输入框在各浏览器中的上下微调箭头与步长失配干扰 */
+        .frame-delay-input::-webkit-outer-spin-button,
+        .frame-delay-input::-webkit-inner-spin-button,
+        .frame-duration-input::-webkit-outer-spin-button,
+        .frame-duration-input::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+        }
+        .frame-delay-input,
+        .frame-duration-input {
+            -moz-appearance: textfield !important;
+        }
+
+        /* 现代化单帧时长胶囊组件 (Duration Pill) */
+        .frame-duration-pill {
+            display: inline-flex;
             align-items: center;
-            gap: 4px;
-        }
-        .frame-delay-input {
-            width: 68px;
-            background: var(--card-bg);
+            background: var(--card-sub-bg);
             border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 4px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            text-align: right;
-        }
-        .frame-delay-unit {
-            font-size: 12px;
-            color: var(--text-sub);
-        }
-        .frame-actions {
-            display: flex;
+            border-radius: 6px;
+            padding: 2px 7px;
             gap: 4px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            cursor: text;
         }
+        .frame-duration-pill:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+            background: var(--card-bg);
+        }
+        .frame-duration-pill:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            background: var(--card-bg);
+        }
+        .frame-duration-input {
+            width: 46px;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            padding: 2px 0;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: right;
+            outline: none;
+            font-family: monospace;
+        }
+        .frame-duration-unit {
+            font-size: 11px;
+            color: var(--text-sub);
+            user-select: none;
+            line-height: 1;
+        }
+
+        /* 幽灵删除动作按钮 (Ghost Delete Action) */
+        .btn-delete-frame {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-sub);
+            cursor: pointer;
+            opacity: 0.35;
+            transition: all 0.18s ease;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0;
+            flex-shrink: 0;
+        }
+        .frame-item:hover .btn-delete-frame,
+        .btn-delete-frame:focus {
+            opacity: 1;
+        }
+        .btn-delete-frame:hover {
+            opacity: 1;
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
         .btn-icon {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             color: var(--text-main);
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 11.5px;
             cursor: pointer;
-            transition: background 0.15s;
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+            user-select: none;
+            white-space: nowrap;
         }
         .btn-icon:hover {
             background: var(--border-color);
@@ -551,16 +808,71 @@
             border-color: var(--danger);
             color: #fff;
         }
+
+        /* 置顶时间轴控制中枢 (Batch Toolbar) */
         .batch-toolbar {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
-            gap: 8px;
+            gap: 8px 12px;
             margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px dashed var(--border-color);
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
             font-size: 12px;
+            transition: background-color 0.25s ease, border-color 0.25s ease;
+        }
+        .batch-toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .batch-toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: auto;
+        }
+        .speed-presets-group {
+            display: inline-flex;
+            align-items: center;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 2px;
+            gap: 2px;
+        }
+        .speed-presets-label {
+            font-size: 11px;
+            color: var(--text-sub);
+            padding: 0 4px;
+            user-select: none;
+        }
+        .btn-speed-preset {
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            padding: 2px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        .btn-speed-preset:hover {
+            color: var(--text-main);
+            background: var(--card-sub-bg);
+        }
+        .btn-speed-preset.active {
+            background: var(--primary);
+            color: #ffffff;
+            font-weight: 600;
         }
         .batch-inputs {
             display: flex;
@@ -568,9 +880,19 @@
             gap: 6px;
             flex-wrap: wrap;
         }
-        .batch-inputs .btn-icon, .batch-toolbar > .btn-icon {
-            padding: 4px 8px;
-            font-size: 11.5px;
+        .frame-delay-input {
+            width: 58px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: right;
+            outline: none;
+        }
+        .frame-delay-input:focus {
+            border-color: var(--primary);
         }
 
         /* 全局配置控制 */
@@ -592,6 +914,11 @@
             gap: 10px;
             font-size: 13px;
         }
+        label {
+            white-space: nowrap;
+            flex-shrink: 0;
+            user-select: none;
+        }
         .control-group select {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -602,7 +929,34 @@
             outline: none;
         }
 
-        /* 按钮与提示 */
+        /* 稳健操作底栏 (Action Dock) */
+        .action-dock {
+            background: var(--card-inner-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.12);
+        }
+        .action-dock-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+        .action-dock-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .action-dock-desc {
+            font-size: 13px;
+            color: var(--text-sub);
+        }
         .btn-generate {
             width: 100%;
             background: var(--primary);
@@ -614,6 +968,25 @@
             border-radius: 8px;
             cursor: pointer;
             transition: background 0.2s;
+        }
+        .btn-generate.action-dock-btn {
+            width: auto;
+            min-width: 260px;
+            padding: 13px 28px;
+            font-size: 14.5px;
+            flex-shrink: 0;
+        }
+        @media (max-width: 680px) {
+            .action-dock {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 14px;
+                padding: 16px;
+            }
+            .btn-generate.action-dock-btn {
+                width: 100%;
+                min-width: 0;
+            }
         }
         .btn-generate:hover:not(:disabled) {
             background: var(--primary-hover);
@@ -807,13 +1180,14 @@
 
         /* 制作历史区域 */
         .history-section {
-            width: 100%;
-            max-width: 980px;
+            width: calc(100% - 32px);
+            max-width: 1200px;
             background: var(--card-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             padding: 24px;
             box-shadow: var(--shadow-main);
+            margin: 0 auto 32px auto;
             transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
         .history-header {
@@ -1138,40 +1512,226 @@
             background: var(--primary-hover);
         }
 
+        /* 现代化自定义下拉选择组件 (Custom Select Dropdown) */
+        .enhanced-select-native {
+            position: absolute !important;
+            opacity: 0 !important;
+            width: 1px !important;
+            height: 1px !important;
+            pointer-events: none !important;
+            clip: rect(0, 0, 0, 0) !important;
+            overflow: hidden !important;
+            margin: -1px !important;
+            padding: 0 !important;
+            border: 0 !important;
+        }
+        .custom-select-wrapper {
+            position: relative;
+            display: inline-block;
+            vertical-align: middle;
+            font-size: 13px;
+            user-select: none;
+            box-sizing: border-box;
+            min-width: 0;
+        }
+        .custom-select-wrapper.full-width {
+            display: block;
+            width: 100%;
+        }
+        .custom-select-trigger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+            cursor: pointer;
+            width: 100%;
+            min-height: 32px;
+            text-align: left;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .custom-select-trigger:hover, .custom-select-trigger:focus-visible {
+            border-color: var(--primary);
+            background: var(--card-bg);
+        }
+        .custom-select-wrapper.open .custom-select-trigger {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+        .custom-select-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+        .custom-select-arrow {
+            width: 12px;
+            height: 12px;
+            flex-shrink: 0;
+            color: var(--text-sub);
+            transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+        }
+        .custom-select-wrapper.open .custom-select-arrow {
+            transform: rotate(180deg);
+            color: var(--primary);
+        }
+        .custom-select-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 100%;
+            width: max-content;
+            max-width: min(420px, calc(100vw - 32px));
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: var(--shadow-modal);
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-4px) scale(0.98);
+            transform-origin: top center;
+            transition: opacity 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.16s;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .custom-select-menu.drop-up {
+            top: auto;
+            bottom: calc(100% + 4px);
+            transform-origin: bottom center;
+        }
+        .custom-select-wrapper.open .custom-select-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+        }
+        .custom-select-list {
+            max-height: 240px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .custom-select-list::-webkit-scrollbar {
+            display: none !important;
+            width: 0 !important;
+            height: 0 !important;
+        }
+        .custom-select-scrollbar-thumb {
+            position: absolute;
+            right: 3px;
+            width: 3.5px;
+            border-radius: 9999px;
+            background: rgba(148, 163, 184, 0.45);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 10;
+            transition: opacity 0.25s ease;
+        }
+        [data-theme="light"] .custom-select-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.45);
+        }
+        .custom-select-menu:hover .custom-select-scrollbar-thumb,
+        .custom-select-menu.is-scrolling .custom-select-scrollbar-thumb {
+            opacity: 1;
+        }
+        [data-theme="dark"] .custom-select-menu {
+            background: #1e293b;
+            box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.07);
+        }
+        [data-theme="light"] .custom-select-menu {
+            background: #ffffff;
+            box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.06);
+        }
+        .custom-select-option {
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            color: var(--text-main);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            box-sizing: border-box;
+            transition: background 0.15s ease, color 0.15s ease;
+            white-space: nowrap;
+        }
+        .custom-select-option:hover {
+            background: var(--card-sub-bg);
+            color: var(--primary);
+        }
+        .custom-select-option.selected {
+            background: rgba(59, 130, 246, 0.12);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .custom-select-option-text {
+            flex: 1;
+            text-align: left;
+            white-space: nowrap;
+        }
+        .custom-select-option-check {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease;
+        }
+        .custom-select-option.selected .custom-select-option-check {
+            opacity: 1;
+            visibility: visible;
+        }
+
         /* 移动端无障碍响应式断点深度适配 */
-        @media (max-width: 640px) {
-            body {
-                padding: 16px 8px;
+        @media (max-width: 768px) {
+            .header-inner {
+                padding: 10px 14px;
+            }
+            .brand-desc {
+                display: none;
+            }
+            .brand-title {
+                font-size: 16px;
+            }
+            .quick-theme-toggle {
+                padding: 6px 8px;
+            }
+            .theme-toggle-text {
+                display: none;
             }
             .container {
+                margin: 14px 8px;
+                width: calc(100% - 16px);
                 padding: 16px 12px;
                 border-radius: 10px;
-                margin-bottom: 16px;
-            }
-            .header-bar {
-                flex-direction: column;
-                align-items: center;
-                gap: 12px;
-                margin-bottom: 12px;
-            }
-            .header-title-wrap h1 {
-                font-size: 20px;
-            }
-            .theme-switcher {
-                width: 100%;
-                max-width: 300px;
-                display: flex;
-            }
-            .theme-btn {
-                flex: 1;
-                justify-content: center;
-                padding: 6px 4px;
-                font-size: 12px;
             }
             .description {
                 font-size: 13px;
                 margin-bottom: 16px;
                 text-align: left;
+            }
+        }
+        @media (max-width: 640px) {
+            body {
+                padding: 0 0 20px 0;
             }
             .section-box {
                 padding: 12px;
@@ -1241,8 +1801,12 @@
                 align-items: stretch;
                 gap: 6px;
             }
-            .control-group select {
+            .control-group select,
+            .control-group .custom-select-wrapper {
                 width: 100%;
+            }
+            #box-cover-text-opts {
+                padding-left: 0 !important;
             }
             .preview-box {
                 padding: 10px;
@@ -1272,6 +1836,7 @@
                 padding: 14px;
                 gap: 12px;
                 overflow-y: auto;
+                overflow-y: overlay;
             }
             .trimmer-video-wrapper {
                 height: 180px;
@@ -1304,257 +1869,377 @@
 </head>
 <body>
     <div id="toast-container" class="toast-container" aria-live="polite"></div>
-    <div class="container">
-        <div class="header-bar">
-            <div class="header-title-wrap">
-                <h1>APNG 伪装图片制作工具</h1>
-            </div>
-            <div class="theme-switcher" id="theme-switcher" role="radiogroup" aria-label="主题切换">
-                <button type="button" class="theme-btn" id="theme-btn-dark" data-theme-val="dark" title="暗色模式">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    <span>暗色</span>
+    <!-- 全局吸顶顶栏 -->
+    <header class="site-header">
+        <div class="header-inner">
+            <a href="#" class="brand-link" title="APNG 伪装图片制作工具">
+                <div class="brand-logo">
+                    <svg width="36" height="36" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="apng-grad-base" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#3b82f6" />
+                                <stop offset="50%" stop-color="#6366f1" />
+                                <stop offset="100%" stop-color="#8b5cf6" />
+                            </linearGradient>
+                            <linearGradient id="apng-grad-cover" x1="12" y1="10" x2="36" y2="34" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#10b981" />
+                                <stop offset="100%" stop-color="#06b6d4" />
+                            </linearGradient>
+                        </defs>
+                        <!-- 底层动态帧示意卡片 -->
+                        <rect x="6" y="6" width="30" height="30" rx="8" fill="url(#apng-grad-base)" fill-opacity="0.25" stroke="url(#apng-grad-base)" stroke-width="2.5" />
+                        <!-- 表层静态伪装图层 -->
+                        <rect x="12" y="12" width="30" height="30" rx="8" fill="url(#apng-grad-base)" fill-opacity="0.92" />
+                        <!-- 动态播放微符 -->
+                        <path d="M23 20.5L33 27L23 33.5V20.5Z" fill="#ffffff" />
+                        <!-- 伪装徽角标 -->
+                        <circle cx="12" cy="12" r="3.5" fill="url(#apng-grad-cover)" />
+                    </svg>
+                </div>
+                <div class="brand-meta">
+                    <div class="brand-title">APNG <span>Studio</span></div>
+                    <div class="brand-desc">伪装图片制作工具</div>
+                </div>
+            </a>
+
+            <div class="header-actions">
+                <!-- 快捷主题切换按钮 -->
+                <button type="button" class="quick-theme-toggle" id="quick-theme-toggle" aria-label="快捷切换色彩主题" title="快捷切换色彩主题">
+                    <span class="theme-icon-slot">
+                        <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </span>
+                    <span class="theme-toggle-text" id="theme-toggle-text">暗色</span>
                 </button>
-                <button type="button" class="theme-btn" id="theme-btn-light" data-theme-val="light" title="亮色模式">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                    <span>亮色</span>
-                </button>
+
+                <!-- GitHub 仓库链接 -->
+                <a href="https://github.com/meiyongai/apng-tool" target="_blank" rel="noopener noreferrer" class="header-icon-btn" title="查看 GitHub 开源仓库" aria-label="查看 GitHub 开源仓库">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+                    </svg>
+                </a>
             </div>
         </div>
+    </header>
+    <div class="container">
         <p class="description">
             制作“缩略图看封面，点开看动图或视频”的 APNG 伪装图片。<br>
             纯本地处理，保护隐私；支持图片、动图与视频，支持裁剪时段与封面特效。
         </p>
 
-        <div class="grid">
-            <!-- 封面图设置卡片 -->
-            <div class="section-box">
-                <div class="section-header">
-                    <div class="section-title">1. 封面设置</div>
-                    <div class="tab-group">
-                        <button id="tab-cover-color" class="tab-btn active" type="button">自选纯色</button>
-                        <button id="tab-cover-image" class="tab-btn" type="button">上传图片</button>
-                        <button id="tab-cover-frame" class="tab-btn" type="button">选用隐藏帧</button>
-                    </div>
-                </div>
-
-                <!-- 纯色封面面板 -->
-                <div id="panel-cover-color" class="color-selector-panel" style="display: flex;">
-                    <div class="color-row">
-                        <input type="color" id="input-cover-color" class="color-input-native" value="#0f172a" />
-                        <input type="text" id="input-cover-hex" class="color-text-input" value="#0F172A" maxlength="7" />
-                        <span style="font-size: 12px; color: var(--text-sub);">点击色块或输入16进制值</span>
-                    </div>
-                    <div class="preset-colors">
-                        <div class="color-swatch" style="background: #000000;" data-color="#000000" title="纯黑"></div>
-                        <div class="color-swatch" style="background: #0f172a;" data-color="#0f172a" title="深蓝"></div>
-                        <div class="color-swatch" style="background: #1e293b;" data-color="#1e293b" title="暗灰"></div>
-                        <div class="color-swatch" style="background: #ffffff;" data-color="#ffffff" title="纯白"></div>
-                        <div class="color-swatch" style="background: #ef4444;" data-color="#ef4444" title="猩红"></div>
-                        <div class="color-swatch" style="background: #10b981;" data-color="#10b981" title="薄荷绿"></div>
-                        <div class="color-swatch" style="background: #3b82f6;" data-color="#3b82f6" title="经典蓝"></div>
-                        <div class="color-swatch" style="background: #f59e0b;" data-color="#f59e0b" title="琥珀黄"></div>
-                    </div>
-                    <div id="cover-color-preview" class="color-preview-box" style="background-color: #0f172a; color: #fff;">
-                        封面预览色：#0F172A
-                    </div>
-                </div>
-
-                <!-- 图片封面面板 -->
-                <div id="panel-cover-image" style="display: none;">
-                    <div class="upload-card" id="drop-cover">
-                        <img id="preview-cover" class="preview-img" alt="封面图预览" />
-                        <div class="upload-hint" id="hint-cover">拖拽封面图片到此，或点击选择</div>
-                        <div id="info-cover" class="file-info"></div>
-                        <input type="file" id="input-cover" accept="image/*" />
-                    </div>
-                </div>
-
-                <!-- 隐藏帧封面面板 -->
-                <div id="panel-cover-frame" style="display: none; flex-direction: column; gap: 10px; padding: 12px 0;">
-                    <div style="font-size: 13px; color: var(--text-sub);">从右侧隐藏序列中选择某一帧作为封面底图：</div>
-                    <select id="select-cover-frame" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; border-radius: 6px; font-size: 13px; outline: none;">
-                        <option value="0">第 1 帧（首帧）</option>
-                    </select>
-                    <div id="cover-frame-hint" style="font-size: 12px; color: var(--warning); display: none;">提示：当前尚未添加任何隐藏帧，请先在右侧上传图片或导入视频。</div>
-                </div>
-
-                <!-- 封面修饰与混淆 -->
-                <div class="cover-effects-panel" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
-                    <div style="font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>封面修饰与混淆</span>
+        <div class="workbench-grid">
+            <!-- 左栏：控制与参数工坊 -->
+            <div class="workbench-column left-column">
+                <!-- 1. 封面图设置卡片 (不含画框) -->
+                <div class="section-box">
+                    <div class="section-header">
+                        <div class="section-title">1. 封面设置</div>
+                        <div class="tab-group">
+                            <button id="tab-cover-color" class="tab-btn active" type="button">自选纯色</button>
+                            <button id="tab-cover-image" class="tab-btn" type="button">上传图片</button>
+                            <button id="tab-cover-frame" class="tab-btn" type="button">选用隐藏帧</button>
+                        </div>
                     </div>
 
-                    <!-- 混淆方式与颗粒度 -->
-                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                        <label for="select-cover-confusion">混淆方式：</label>
-                        <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
-                            <option value="none" selected>无混淆 (原样)</option>
-                            <option value="gilbert">小番茄曲线</option>
-                            <option value="pic_block">块置乱</option>
-                            <option value="pic_row">行置乱</option>
-                            <option value="pic_pixel">像素打乱</option>
-                            <option value="pic_chaos_row">混沌行置乱</option>
-                            <option value="pic_chaos_2d">混沌二维置乱</option>
-                            <option value="pixelate">马赛克</option>
-                            <option value="rgb_split">RGB 色散</option>
-                            <option value="scanline">扫描线</option>
-                            <option value="jigsaw">拼图打乱</option>
-                            <option value="swirl">漩涡扭曲</option>
-                            <option value="halftone">半色调网点</option>
-                            <option value="ascii">ASCII 字符</option>
-                            <option value="edge">轮廓线框</option>
-                            <option value="caution">警戒封条</option>
-                            <option value="invert">色彩反转</option>
-                            <option value="grayscale">黑白灰度</option>
-                            <option value="noise">随机噪点</option>
+                    <!-- 纯色封面面板 -->
+                    <div id="panel-cover-color" class="color-selector-panel" style="display: flex;">
+                        <div class="color-row">
+                            <input type="color" id="input-cover-color" class="color-input-native" value="#0f172a" />
+                            <input type="text" id="input-cover-hex" class="color-text-input" value="#0F172A" maxlength="11" />
+                            <span style="font-size: 12px; color: var(--text-sub);">点击色块或输入16进制值</span>
+                        </div>
+                        <div class="preset-colors">
+                            <div class="color-swatch transparent" data-color="transparent" title="透明色"></div>
+                            <div class="color-swatch" style="background: #000000;" data-color="#000000" title="纯黑"></div>
+                            <div class="color-swatch" style="background: #0f172a;" data-color="#0f172a" title="深蓝"></div>
+                            <div class="color-swatch" style="background: #1e293b;" data-color="#1e293b" title="暗灰"></div>
+                            <div class="color-swatch" style="background: #ffffff;" data-color="#ffffff" title="纯白"></div>
+                            <div class="color-swatch" style="background: #ef4444;" data-color="#ef4444" title="猩红"></div>
+                            <div class="color-swatch" style="background: #10b981;" data-color="#10b981" title="薄荷绿"></div>
+                            <div class="color-swatch" style="background: #3b82f6;" data-color="#3b82f6" title="经典蓝"></div>
+                            <div class="color-swatch" style="background: #f59e0b;" data-color="#f59e0b" title="琥珀黄"></div>
+                        </div>
+                        <div id="cover-color-preview" class="color-preview-box" style="background-color: #0f172a; color: #fff;">
+                            封面预览色：#0F172A
+                        </div>
+                    </div>
+
+                    <!-- 图片封面面板 -->
+                    <div id="panel-cover-image" style="display: none;">
+                        <div class="upload-card" id="drop-cover">
+                            <img id="preview-cover" class="preview-img" alt="封面图预览" />
+                            <div class="upload-hint" id="hint-cover">拖拽封面图片到此，或点击选择</div>
+                            <div id="info-cover" class="file-info"></div>
+                            <input type="file" id="input-cover" accept="image/*" />
+                        </div>
+                    </div>
+
+                    <!-- 隐藏帧封面面板 -->
+                    <div id="panel-cover-frame" style="display: none; flex-direction: column; gap: 10px; padding: 12px 0;">
+                        <div style="font-size: 13px; color: var(--text-sub);">从右侧隐藏序列中选择某一帧作为封面底图：</div>
+                        <select id="select-cover-frame" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 10px; border-radius: 6px; font-size: 13px; outline: none;">
+                            <option value="0">第 1 帧（首帧）</option>
                         </select>
+                        <div id="cover-frame-hint" style="font-size: 12px; color: var(--warning); display: none;">提示：当前尚未添加任何隐藏帧，请先在右侧上传图片或导入视频。</div>
+                    </div>
 
-                        <div id="box-scramble-key" style="display: none; align-items: center; gap: 4px;">
-                            <label for="input-scramble-key">混淆密钥：</label>
-                            <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或数值" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 110px; outline: none;" />
+                    <!-- 封面底图不透明度通用滑块 -->
+                    <div class="cover-opacity-control">
+                        <label for="input-cover-opacity" class="cover-opacity-label">
+                            <span>封面不透明度：</span>
+                        </label>
+                        <div class="cover-opacity-slider-wrap">
+                            <input type="range" id="input-cover-opacity" class="cover-opacity-slider" min="0" max="100" value="100" step="1" />
+                            <span id="label-cover-opacity" class="cover-opacity-val">100%</span>
+                        </div>
+                    </div>
+
+                    <!-- 封面修饰与混淆 -->
+                    <div class="cover-effects-panel" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
+                        <div style="font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>封面修饰与混淆</span>
                         </div>
 
-                        <div id="box-pixel-size" style="display: none; align-items: center; gap: 4px;">
-                            <label for="select-pixel-size">颗粒度：</label>
-                            <select id="select-pixel-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 12px; outline: none;">
-                                <option value="8">8px (小)</option>
-                                <option value="16" selected>16px (中)</option>
-                                <option value="24">24px (大)</option>
-                                <option value="36">36px (特大)</option>
+                        <!-- 混淆方式与颗粒度 -->
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                            <label for="select-cover-confusion">混淆方式：</label>
+                            <select id="select-cover-confusion" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
+                                <option value="none" selected>无混淆 (原样)</option>
+                                <option value="gilbert">小番茄曲线</option>
+                                <option value="pic_block">块置乱</option>
+                                <option value="pic_row">行置乱</option>
+                                <option value="pic_pixel">像素打乱</option>
+                                <option value="pic_chaos_row">混沌行置乱</option>
+                                <option value="pic_chaos_2d">混沌二维置乱</option>
+                                <option value="pixelate">马赛克</option>
+                                <option value="rgb_split">RGB 色散</option>
+                                <option value="scanline">扫描线</option>
+                                <option value="jigsaw">拼图打乱</option>
+                                <option value="swirl">漩涡扭曲</option>
+                                <option value="halftone">半色调网点</option>
+                                <option value="ascii">ASCII 字符</option>
+                                <option value="edge">轮廓线框</option>
+                                <option value="caution">警戒封条</option>
+                                <option value="invert">色彩反转</option>
+                                <option value="grayscale">黑白灰度</option>
+                                <option value="noise">随机噪点</option>
+                            </select>
+
+                            <div id="box-scramble-key" style="display: none; align-items: center; gap: 4px;">
+                                <label for="input-scramble-key">混淆密钥：</label>
+                                <input type="text" id="input-scramble-key" value="PicEncrypt" placeholder="密钥字符串或数值" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 110px; outline: none;" />
+                            </div>
+
+                            <div id="box-pixel-size" style="display: none; align-items: center; gap: 4px;">
+                                <label for="select-pixel-size">颗粒度：</label>
+                                <select id="select-pixel-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 12px; outline: none;">
+                                    <option value="8">8px (小)</option>
+                                    <option value="16" selected>16px (中)</option>
+                                    <option value="24">24px (大)</option>
+                                    <option value="36">36px (特大)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 模糊处理 -->
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+                            <label for="select-cover-blur">模糊效果：</label>
+                            <select id="select-cover-blur" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
+                                <option value="0" selected>无模糊</option>
+                                <option value="4">轻度 (4px)</option>
+                                <option value="8">中度 (8px)</option>
+                                <option value="16">较强 (16px)</option>
+                                <option value="24">极强 (24px)</option>
+                            </select>
+                        </div>
+
+                        <!-- 自定义文字水印 -->
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="input-cover-text">封面文字：</label>
+                                <input type="text" id="input-cover-text" placeholder="例如：点击查看大图 / 剧透预警" style="flex: 1; background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none;" maxlength="30" />
+                            </div>
+                            <div id="box-cover-text-opts" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-left: 64px;">
+                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <label for="select-cover-text-pos">位置：</label>
+                                    <select id="select-cover-text-pos" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
+                                        <option value="center" selected>居中</option>
+                                        <option value="bottom">底部</option>
+                                        <option value="top">顶部</option>
+                                    </select>
+                                </div>
+                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <label for="select-cover-text-size">字号：</label>
+                                    <select id="select-cover-text-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
+                                        <option value="18">小 (18px)</option>
+                                        <option value="24" selected>中 (24px)</option>
+                                        <option value="30">大 (30px)</option>
+                                        <option value="36">特大 (36px)</option>
+                                    </select>
+                                </div>
+                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <label for="select-cover-text-font">字体：</label>
+                                    <select id="select-cover-text-font" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
+                                        <option value="sans" selected>默认黑体</option>
+                                        <option value="serif">优雅宋体</option>
+                                        <option value="kaiti">经典楷体</option>
+                                        <option value="mono">现代等宽</option>
+                                        <option value="impact">粗重标题</option>
+                                        <option value="rounded">软萌圆体</option>
+                                    </select>
+                                </div>
+                                <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <label for="select-cover-text-bg">背景：</label>
+                                    <select id="select-cover-text-bg" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
+                                        <option value="dark" selected>暗黑微透</option>
+                                        <option value="light">亮白微透</option>
+                                        <option value="yellow">警戒亮黄</option>
+                                        <option value="red">警示鲜红</option>
+                                        <option value="blue">经典科技蓝</option>
+                                        <option value="none">无背景衬底</option>
+                                        <option value="custom">自选色彩...</option>
+                                    </select>
+                                </div>
+                                <div id="box-cover-text-custom-bg" style="display: none; align-items: center; gap: 6px; flex-shrink: 0;">
+                                    <label for="input-cover-text-bg-color" title="衬底颜色" style="font-size: 11px;">底色:</label>
+                                    <input type="color" id="input-cover-text-bg-color" value="#000000" style="width: 22px; height: 22px; padding: 0; border: 1px solid var(--border-color); border-radius: 4px; background: none; cursor: pointer;" />
+                                    <label for="input-cover-text-color" title="文字颜色" style="font-size: 11px;">字色:</label>
+                                    <input type="color" id="input-cover-text-color" value="#ffffff" style="width: 22px; height: 22px; padding: 0; border: 1px solid var(--border-color); border-radius: 4px; background: none; cursor: pointer;" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. 全局输出规格卡片 (融合进左栏底部) -->
+                <div class="section-box">
+                    <div class="section-header">
+                        <div class="section-title">2. 输出规格与适配</div>
+                    </div>
+                    <div class="controls" style="margin-bottom: 0; padding: 0; background: transparent; border: none; gap: 14px;">
+                        <div class="control-group">
+                            <label for="select-resolution-preset">输出分辨率：</label>
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <select id="select-resolution-preset">
+                                    <option value="native" selected>原尺寸 (首图基准)</option>
+                                    <option value="preset_1080p">1080P (1920 × 1080)</option>
+                                    <option value="preset_720p">720P (1280 × 720)</option>
+                                    <option value="preset_480p">480P (854 × 480)</option>
+                                    <option value="preset_360p">360P (640 × 360)</option>
+                                    <option value="custom">自定义分辨率</option>
+                                </select>
+                                <div id="custom-res-panel" style="display: none; align-items: center; gap: 6px;">
+                                    <span>宽:</span>
+                                    <input type="number" id="input-custom-width" class="frame-delay-input" style="width: 72px;" value="1280" min="16" max="4096" />
+                                    <span>px × 高:</span>
+                                    <input type="number" id="input-custom-height" class="frame-delay-input" style="width: 72px;" value="720" min="16" max="4096" />
+                                    <span>px</span>
+                                    <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; user-select: none;">
+                                        <input type="checkbox" id="check-aspect-ratio" checked />
+                                        <span>锁定比例</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label for="select-mode">画面适配：</label>
+                            <select id="select-mode">
+                                <option value="cover-fit">居中裁剪 (无黑边)</option>
+                                <option value="contain-fit">等比缩放 (留黑边)</option>
+                                <option value="stretch-fit">拉伸填满</option>
                             </select>
                         </div>
                     </div>
-
-                    <!-- 模糊处理 -->
-                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
-                        <label for="select-cover-blur">模糊效果：</label>
-                        <select id="select-cover-blur" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 8px; border-radius: 4px; font-size: 12px; outline: none;">
-                            <option value="0" selected>无模糊</option>
-                            <option value="4">轻度 (4px)</option>
-                            <option value="8">中度 (8px)</option>
-                            <option value="16">较强 (16px)</option>
-                            <option value="24">极强 (24px)</option>
-                        </select>
-                    </div>
-
-                    <!-- 自定义文字水印 -->
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <label for="input-cover-text">封面文字：</label>
-                            <input type="text" id="input-cover-text" placeholder="例如：点击查看大图 / 剧透预警" style="flex: 1; background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 5px 8px; border-radius: 4px; font-size: 12px; outline: none;" maxlength="30" />
-                        </div>
-                        <div id="box-cover-text-opts" style="display: flex; align-items: center; gap: 12px; padding-left: 64px;">
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <label for="select-cover-text-pos">位置：</label>
-                                <select id="select-cover-text-pos" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                    <option value="center" selected>居中</option>
-                                    <option value="bottom">底部</option>
-                                    <option value="top">顶部</option>
-                                </select>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 4px;">
-                                <label for="select-cover-text-size">字号：</label>
-                                <select id="select-cover-text-size" style="background: var(--card-sub-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 6px; border-radius: 4px; font-size: 11px; outline: none;">
-                                    <option value="18">小 (18px)</option>
-                                    <option value="24" selected>中 (24px)</option>
-                                    <option value="30">大 (30px)</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 实时所见即所得封面监看画框 -->
-                    <div class="cover-live-preview-box">
-                        <div class="cover-live-preview-header">
-                            <span class="cover-live-preview-title">封面预览：</span>
-                            <span id="cover-preview-ratio-badge" class="cover-preview-ratio-badge">自适应</span>
-                        </div>
-                        <div id="cover-preview-stage" class="cover-preview-stage">
-                            <canvas id="canvas-cover-live-preview" class="cover-preview-canvas"></canvas>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            <!-- 隐藏项设置卡片 -->
-            <div class="section-box">
-                <div class="section-header">
-                    <div class="section-title">2. 隐藏内容设置</div>
-                    <span id="badge-frame-count" class="history-badge">已添加 0 帧</span>
-                </div>
-
-                <!-- 隐藏项目上传拖拽区（支持图片、动图、视频） -->
-                <div class="upload-card" id="drop-hidden" style="min-height: 120px; padding: 16px;">
-                    <span class="upload-plus-icon">+</span>
-                    <div id="upload-hidden-title" class="upload-main-text" style="font-size: 15px; font-weight: 600;">点击或拖拽添加图片、动图或视频</div>
-                    <div class="upload-hint">动图与视频导入后支持自由裁剪时段与调整帧率</div>
-                    <input type="file" id="input-hidden" multiple accept="image/*,video/*" />
-                </div>
-
-                <!-- 抽帧处理中进度指示 -->
-                <div id="loading-bar-wrapper" class="loading-bar-wrapper">
-                    <span id="loading-text">正在处理媒体文件...</span>
-                </div>
-
-                <!-- 隐藏图帧列表 -->
-                <div id="hidden-frame-list" class="frame-list-wrapper">
-                    <!-- 动态插入帧条目 -->
-                </div>
-
-                <!-- 批量控制工具栏 -->
-                <div id="batch-toolbar" class="batch-toolbar" style="display: none;">
-                    <div class="batch-inputs">
-                        <span>统一时长：</span>
-                        <input type="number" id="input-batch-delay" class="frame-delay-input" value="100" min="50" step="50" />
-                        <select id="select-delay-unit" style="background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 4px 6px; border-radius: 4px; font-size: 12px; outline: none; cursor: pointer;">
-                            <option value="ms" selected>毫秒 (ms)</option>
-                            <option value="s">秒 (s)</option>
-                        </select>
-                        <button id="btn-apply-batch-delay" class="btn-icon" type="button">应用到全部</button>
-                        <button id="btn-reverse-frames" class="btn-icon" type="button" title="颠倒当前帧序列顺序">⇄ 倒序排列</button>
+            <!-- 右栏：封面预览与隐藏媒体序列 -->
+            <div class="workbench-column right-column">
+                <!-- 封面预览卡片 -->
+                <div class="section-box preview-hero-box">
+                    <div class="section-header">
+                        <div class="section-title">封面预览</div>
+                        <span id="cover-preview-ratio-badge" class="cover-preview-ratio-badge">自适应</span>
                     </div>
-                    <button id="btn-clear-all-frames" class="btn-icon danger" type="button">清空列表</button>
+                    <div id="cover-preview-stage" class="cover-preview-stage">
+                        <canvas id="canvas-cover-live-preview" class="cover-preview-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- 隐藏内容媒体序列卡片 -->
+                <div class="section-box frame-manage-box">
+                    <div class="section-header">
+                        <div class="section-title">隐藏媒体序列</div>
+                        <span id="badge-frame-count" class="history-badge">已添加 0 帧</span>
+                    </div>
+
+                    <!-- 隐藏项目上传拖拽区（支持图片、动图、视频） -->
+                    <div class="upload-card" id="drop-hidden" style="min-height: 110px; padding: 14px;">
+                        <span class="upload-plus-icon">+</span>
+                        <div id="upload-hidden-title" class="upload-main-text" style="font-size: 14.5px; font-weight: 600;">点击或拖拽添加图片、动图或视频</div>
+                        <div class="upload-hint">动图与视频导入后支持自由裁剪时段与调整帧率</div>
+                        <input type="file" id="input-hidden" multiple accept="image/*,video/*" />
+                    </div>
+
+                    <!-- 抽帧处理中进度指示 -->
+                    <div id="loading-bar-wrapper" class="loading-bar-wrapper">
+                        <span id="loading-text">正在处理媒体文件...</span>
+                    </div>
+
+                    <!-- 批量控制工具栏 (置顶时间轴中枢) -->
+                    <div id="batch-toolbar" class="batch-toolbar" style="display: none;">
+                        <div class="batch-toolbar-left">
+                            <div class="speed-presets-group" title="等比例缩放所有帧的停留时长">
+                                <span class="speed-presets-label">倍速:</span>
+                                <button type="button" class="btn-speed-preset" data-speed="0.5">0.5x</button>
+                                <button type="button" class="btn-speed-preset active" data-speed="1.0">1.0x</button>
+                                <button type="button" class="btn-speed-preset" data-speed="1.5">1.5x</button>
+                                <button type="button" class="btn-speed-preset" data-speed="2.0">2.0x</button>
+                            </div>
+                            <div class="batch-inputs">
+                                <span>统一:</span>
+                                <input type="number" id="input-batch-delay" class="frame-delay-input" value="100" min="10" max="60000" step="any" />
+                                <select id="select-delay-unit" style="background: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 3px 5px; border-radius: 4px; font-size: 11.5px; outline: none; cursor: pointer;">
+                                    <option value="ms" selected>ms</option>
+                                    <option value="s">s</option>
+                                </select>
+                                <button id="btn-apply-batch-delay" class="btn-icon" type="button">应用</button>
+                            </div>
+                        </div>
+                        <div class="batch-toolbar-right">
+                            <button id="btn-reverse-frames" class="btn-icon" type="button" title="颠倒当前帧序列顺序">⇄ 倒序</button>
+                            <button id="btn-clear-all-frames" class="btn-icon danger" type="button">清空</button>
+                        </div>
+                    </div>
+
+                    <!-- 隐藏图帧列表 -->
+                    <div id="hidden-frame-list" class="frame-list-wrapper">
+                        <!-- 动态插入帧条目 -->
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 全局配置 -->
-        <div class="controls">
-            <div class="control-group">
-                <label for="select-resolution-preset">输出分辨率：</label>
-                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                    <select id="select-resolution-preset">
-                        <option value="native" selected>原尺寸 (首图基准)</option>
-                        <option value="preset_1080p">1080P (1920 × 1080)</option>
-                        <option value="preset_720p">720P (1280 × 720)</option>
-                        <option value="preset_480p">480P (854 × 480)</option>
-                        <option value="preset_360p">360P (640 × 360)</option>
-                        <option value="custom">自定义分辨率</option>
-                    </select>
-                    <div id="custom-res-panel" style="display: none; align-items: center; gap: 6px;">
-                        <span>宽:</span>
-                        <input type="number" id="input-custom-width" class="frame-delay-input" style="width: 72px;" value="1280" min="16" max="4096" />
-                        <span>px × 高:</span>
-                        <input type="number" id="input-custom-height" class="frame-delay-input" style="width: 72px;" value="720" min="16" max="4096" />
-                        <span>px</span>
-                        <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; user-select: none;">
-                            <input type="checkbox" id="check-aspect-ratio" checked />
-                            <span>锁定比例</span>
-                        </label>
-                    </div>
-                </div>
+        <!-- 稳健操作底栏 (Action Dock) -->
+        <div class="action-dock">
+            <div class="action-dock-info">
+                <div class="action-dock-title">合成状态概览</div>
+                <div id="action-dock-desc" class="action-dock-desc">请在右侧添加至少 1 个隐藏帧以开始制作</div>
             </div>
-            <div class="control-group">
-                <label for="select-mode">画面适配：</label>
-                <select id="select-mode">
-                    <option value="cover-fit">居中裁剪 (无黑边)</option>
-                    <option value="contain-fit">等比缩放 (留黑边)</option>
-                    <option value="stretch-fit">拉伸填满</option>
-                </select>
-            </div>
+            <button id="btn-generate" class="btn-generate action-dock-btn" disabled>请添加至少 1 个隐藏帧</button>
         </div>
-
-        <button id="btn-generate" class="btn-generate" disabled>请添加至少 1 个隐藏帧</button>
         <div id="generate-progress-box" class="progress-box" style="display: none;">
             <div class="progress-header">
                 <span id="progress-stage-text" class="progress-stage">正在准备合成...</span>
@@ -1709,6 +2394,19 @@
         let currentCoverFrameIndex = 0;
 
         /**
+         * 封面文字字体映射表。
+         * @type {Record<string, string>}
+         */
+        const COVER_FONT_FAMILY_MAP = {
+            sans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif',
+            serif: '"Songti SC", "SimSun", "STSong", "Noto Serif SC", serif',
+            kaiti: '"Kaiti SC", "KaiTi", "STKaiti", cursive, serif',
+            mono: '"SF Mono", "Fira Code", "Consolas", "Courier New", monospace',
+            impact: '"Impact", "Arial Black", "PingFang SC", "Microsoft YaHei", sans-serif',
+            rounded: '"YouYuan", "Yuanti SC", "Comic Sans MS", cursive, sans-serif'
+        };
+
+        /**
          * 封面修饰与混淆特效配置。
          */
         const coverEffectsConfig = {
@@ -1718,14 +2416,24 @@
             blurRadius: 0,
             text: '',
             textPosition: 'center', // 'center' | 'bottom' | 'top'
-            textSize: 24
+            textSize: 24,
+            textFont: 'sans', // 'sans' | 'serif' | 'kaiti' | 'mono' | 'impact' | 'rounded'
+            textBg: 'dark', // 'dark' | 'light' | 'yellow' | 'red' | 'blue' | 'none' | 'custom'
+            customTextBgColor: '#000000',
+            customTextColor: '#ffffff'
         };
 
         /**
-         * 纯色封面当前颜色值。
+         * 纯色封面当前颜色值。若为 'TRANSPARENT' 则代表透明色。
          * @type {string}
          */
         let currentCoverColor = '#0F172A';
+
+        /**
+         * 封面底图不透明度（0 到 100 整数，0 代表全透明，100 代表完全不透明）。
+         * @type {number}
+         */
+        let currentCoverOpacity = 100;
 
         /**
          * 图片封面状态对象。
@@ -1961,7 +2669,7 @@
         }
 
         /**
-         * 绘制封面底图（纯色、上传图片或选定的隐藏帧）至目标 Canvas 上下文。
+         * 绘制封面底图（纯色填充、上传图像或隐藏帧画面）到指定 Canvas 上下文，并应用不透明度设置。
          *
          * @param {CanvasRenderingContext2D} ctx - 目标 Canvas 上下文。
          * @param {number} targetWidth - 目标宽度。
@@ -1969,14 +2677,26 @@
          * @param {string} fitMode - 画面适配模式 ('cover-fit', 'contain-fit', 'stretch-fit')。
          * @returns {void}
          * @see Callers:
-         *  - `renderCoverToCanvas`
+         *  - `index.html:renderCoverToCanvas`
          */
         function drawCoverBaseToContext(ctx, targetWidth, targetHeight, fitMode) {
             ctx.clearRect(0, 0, targetWidth, targetHeight);
 
+            const opacity = Math.max(0, Math.min(100, currentCoverOpacity)) / 100;
+            if (opacity <= 0) {
+                // 完全透明，直接保持清空后的全透明画布
+                return;
+            }
+
             if (currentCoverMode === 'color') {
+                if (currentCoverColor === 'TRANSPARENT') {
+                    return;
+                }
+                ctx.save();
+                ctx.globalAlpha = opacity;
                 ctx.fillStyle = currentCoverColor;
                 ctx.fillRect(0, 0, targetWidth, targetHeight);
+                ctx.restore();
                 return;
             }
 
@@ -2001,6 +2721,9 @@
                 return;
             }
 
+            ctx.save();
+            ctx.globalAlpha = opacity;
+
             if (fitMode === "stretch-fit") {
                 ctx.drawImage(sourceImg, 0, 0, targetWidth, targetHeight);
             } else if (fitMode === "contain-fit") {
@@ -2017,8 +2740,6 @@
                     drawW = targetHeight * srcRatio;
                     offX = (targetWidth - drawW) / 2;
                 }
-                ctx.fillStyle = "#000000";
-                ctx.fillRect(0, 0, targetWidth, targetHeight);
                 ctx.drawImage(sourceImg, offX, offY, drawW, drawH);
             } else {
                 // cover-fit
@@ -2037,6 +2758,8 @@
                 }
                 ctx.drawImage(sourceImg, srcX, srcY, srcW, srcH, 0, 0, targetWidth, targetHeight);
             }
+
+            ctx.restore();
         }
 
         /**
@@ -3025,9 +3748,11 @@
             if (coverEffectsConfig.text && coverEffectsConfig.text.trim().length > 0) {
                 const text = coverEffectsConfig.text.trim();
                 const fontSize = coverEffectsConfig.textSize || 24;
+                const fontKey = coverEffectsConfig.textFont || 'sans';
+                const fontFamily = COVER_FONT_FAMILY_MAP[fontKey] || COVER_FONT_FAMILY_MAP.sans;
 
                 ctx.save();
-                ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+                ctx.font = `bold ${fontSize}px ${fontFamily}`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
 
@@ -3046,28 +3771,73 @@
                     posY = Math.min(height - pillH / 2 - 12, height * 0.85);
                 }
 
-                // 绘制半透明黑色安全衬底胶囊
-                ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-                const pillX = posX - pillW / 2;
-                const pillY = posY - pillH / 2;
-                const radius = 6;
-                ctx.beginPath();
-                if (typeof ctx.roundRect === "function") {
-                    ctx.roundRect(pillX, pillY, pillW, pillH, radius);
-                } else {
-                    ctx.rect(pillX, pillY, pillW, pillH);
-                }
-                ctx.fill();
+                const bgStyle = coverEffectsConfig.textBg || 'dark';
+                let hasBg = true;
+                let bgColor = "rgba(0, 0, 0, 0.72)";
+                let borderColor = "rgba(255, 255, 255, 0.25)";
+                let textColor = "#ffffff";
+                let shadowColor = "rgba(0, 0, 0, 0.8)";
+                let shadowBlur = 4;
 
-                // 衬底微光描边
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                if (bgStyle === 'light') {
+                    bgColor = "rgba(255, 255, 255, 0.88)";
+                    borderColor = "rgba(0, 0, 0, 0.15)";
+                    textColor = "#0f172a";
+                    shadowColor = "rgba(255, 255, 255, 0.6)";
+                    shadowBlur = 2;
+                } else if (bgStyle === 'yellow') {
+                    bgColor = "rgba(245, 158, 11, 0.92)";
+                    borderColor = "rgba(0, 0, 0, 0.2)";
+                    textColor = "#000000";
+                    shadowColor = "transparent";
+                    shadowBlur = 0;
+                } else if (bgStyle === 'red') {
+                    bgColor = "rgba(239, 68, 68, 0.92)";
+                    borderColor = "rgba(255, 255, 255, 0.3)";
+                    textColor = "#ffffff";
+                    shadowColor = "rgba(0, 0, 0, 0.6)";
+                    shadowBlur = 4;
+                } else if (bgStyle === 'blue') {
+                    bgColor = "rgba(37, 99, 235, 0.92)";
+                    borderColor = "rgba(255, 255, 255, 0.3)";
+                    textColor = "#ffffff";
+                    shadowColor = "rgba(0, 0, 0, 0.6)";
+                    shadowBlur = 4;
+                } else if (bgStyle === 'none') {
+                    hasBg = false;
+                    textColor = "#ffffff";
+                    shadowColor = "rgba(0, 0, 0, 0.95)";
+                    shadowBlur = 6;
+                } else if (bgStyle === 'custom') {
+                    bgColor = coverEffectsConfig.customTextBgColor || "#000000";
+                    borderColor = "rgba(255, 255, 255, 0.25)";
+                    textColor = coverEffectsConfig.customTextColor || "#ffffff";
+                    shadowColor = "rgba(0, 0, 0, 0.7)";
+                    shadowBlur = 4;
+                }
+
+                if (hasBg) {
+                    ctx.fillStyle = bgColor;
+                    const pillX = posX - pillW / 2;
+                    const pillY = posY - pillH / 2;
+                    const radius = 6;
+                    ctx.beginPath();
+                    if (typeof ctx.roundRect === "function") {
+                        ctx.roundRect(pillX, pillY, pillW, pillH, radius);
+                    } else {
+                        ctx.rect(pillX, pillY, pillW, pillH);
+                    }
+                    ctx.fill();
+
+                    ctx.strokeStyle = borderColor;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
 
                 // 绘制文字内容
-                ctx.fillStyle = "#ffffff";
-                ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
-                ctx.shadowBlur = 4;
+                ctx.fillStyle = textColor;
+                ctx.shadowColor = shadowColor;
+                ctx.shadowBlur = shadowBlur;
                 ctx.shadowOffsetX = 0;
                 ctx.shadowOffsetY = 1;
                 ctx.fillText(text, posX, posY);
@@ -3504,6 +4274,7 @@
          */
         function checkReadyState() {
             const btn = document.getElementById("btn-generate");
+            const dockDesc = document.getElementById("action-dock-desc");
             const hasHiddenFrames = hiddenFrames.length > 0;
             const hasCover = (currentCoverMode === 'color') || 
                              (currentCoverMode === 'image' && coverImageState.img !== null) ||
@@ -3512,17 +4283,26 @@
             if (!hasCover) {
                 btn.disabled = true;
                 btn.textContent = (currentCoverMode === 'frame') ? "选用隐藏帧模式需先在右侧添加隐藏帧" : "请先选择或上传封面";
+                if (dockDesc) {
+                    dockDesc.textContent = (currentCoverMode === 'frame') ? "当前选用隐藏帧作为封面底图，需先在右侧媒体序列中添加隐藏帧" : "请先在左侧选择纯色或上传图片作为封面";
+                }
                 return;
             }
 
             if (!hasHiddenFrames) {
                 btn.disabled = true;
                 btn.textContent = "请添加至少 1 个隐藏帧";
+                if (dockDesc) {
+                    dockDesc.textContent = "请在右侧添加至少 1 个隐藏帧以开始制作";
+                }
                 return;
             }
 
             btn.disabled = false;
             btn.textContent = `开始合成 APNG 伪装图片 (含 ${hiddenFrames.length} 帧隐藏序列)`;
+            if (dockDesc) {
+                dockDesc.textContent = `准备就绪：已配置封面底图，包含 ${hiddenFrames.length} 帧隐藏媒体序列，点击右侧按钮启动本地合成流水线`;
+            }
         }
 
         /**
@@ -3600,30 +4380,72 @@
         }
 
         /**
-         * 更新纯色封面所选颜色并同步界面所有对应控件与实时监看。
+         * 更新封面底图不透明度（0%~100%），同步滑动条数值展示并触发实时监看画框重绘。
          *
-         * @param {string} hexColor - 十六进制颜色值。
+         * @param {number} opacity - 目标不透明度数值（0 到 100 整数）。
+         * @param {boolean} [triggerPreview=true] - 是否立即触发实时监看画框重绘。
          * @returns {void}
          * @see Callers:
-         *  - `inputCoverColor.oninput`
-         *  - `inputCoverHex.onchange`
+         *  - `index.html:input-cover-opacity.oninput`
+         *  - `index.html:updateCoverColor`
+         */
+        function updateCoverOpacity(opacity, triggerPreview = true) {
+            currentCoverOpacity = Math.max(0, Math.min(100, Math.round(opacity)));
+            const slider = document.getElementById("input-cover-opacity");
+            const label = document.getElementById("label-cover-opacity");
+            if (slider && parseInt(slider.value, 10) !== currentCoverOpacity) {
+                slider.value = currentCoverOpacity;
+            }
+            if (label) {
+                label.textContent = currentCoverOpacity === 0 ? "0% (全透明)" : `${currentCoverOpacity}%`;
+            }
+            if (triggerPreview) {
+                updateCoverLivePreview();
+            }
+        }
+
+        /**
+         * 更新纯色封面所选颜色并同步界面所有对应控件与实时监看。支持标准十六进制色值及 'TRANSPARENT' 透明色。
+         *
+         * @param {string} colorValue - 十六进制颜色值（如 '#0F172A'）或 'transparent' 关键字。
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:inputCoverColor.oninput`
+         *  - `index.html:inputCoverHex.onchange`
          *  - 预设颜色色块点击事件
          */
-        function updateCoverColor(hexColor) {
-            currentCoverColor = hexColor.toUpperCase();
-            document.getElementById("input-cover-color").value = hexColor;
-            document.getElementById("input-cover-hex").value = currentCoverColor;
-
+        function updateCoverColor(colorValue) {
+            const isTransparent = (colorValue.toLowerCase() === 'transparent');
             const preview = document.getElementById("cover-color-preview");
-            preview.style.backgroundColor = hexColor;
-            preview.textContent = `封面预览色：${currentCoverColor}`;
+            const inputHex = document.getElementById("input-cover-hex");
 
-            // 计算亮度自适应文本颜色
-            const r = parseInt(currentCoverColor.slice(1, 3), 16) || 0;
-            const g = parseInt(currentCoverColor.slice(3, 5), 16) || 0;
-            const b = parseInt(currentCoverColor.slice(5, 7), 16) || 0;
-            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-            preview.style.color = brightness > 128 ? '#000000' : '#ffffff';
+            if (isTransparent) {
+                currentCoverColor = 'TRANSPARENT';
+                if (inputHex) inputHex.value = "TRANSPARENT";
+                if (preview) {
+                    preview.style.backgroundColor = "transparent";
+                    preview.textContent = "封面预览色：透明色 (0%)";
+                    preview.style.color = "var(--text-main)";
+                }
+                updateCoverOpacity(0, false);
+            } else {
+                currentCoverColor = colorValue.toUpperCase();
+                const inputColor = document.getElementById("input-cover-color");
+                if (inputColor) inputColor.value = colorValue;
+                if (inputHex) inputHex.value = currentCoverColor;
+                if (preview) {
+                    preview.style.backgroundColor = colorValue;
+                    preview.textContent = `封面预览色：${currentCoverColor}`;
+                    const r = parseInt(currentCoverColor.slice(1, 3), 16) || 0;
+                    const g = parseInt(currentCoverColor.slice(3, 5), 16) || 0;
+                    const b = parseInt(currentCoverColor.slice(5, 7), 16) || 0;
+                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                    preview.style.color = brightness > 128 ? '#000000' : '#ffffff';
+                }
+                if (currentCoverOpacity === 0) {
+                    updateCoverOpacity(100, false);
+                }
+            }
 
             updateCoverLivePreview();
         }
@@ -3848,6 +4670,12 @@
             const selectTextPos = document.getElementById("select-cover-text-pos");
             const selectTextSize = document.getElementById("select-cover-text-size");
 
+            const selectTextFont = document.getElementById("select-cover-text-font");
+            const selectTextBg = document.getElementById("select-cover-text-bg");
+            const boxCustomBg = document.getElementById("box-cover-text-custom-bg");
+            const inputBgColor = document.getElementById("input-cover-text-bg-color");
+            const inputTextColor = document.getElementById("input-cover-text-color");
+
             selectFrame.addEventListener("change", (e) => {
                 currentCoverFrameIndex = parseInt(e.target.value, 10) || 0;
                 updateCoverLivePreview();
@@ -3912,6 +4740,37 @@
                 coverEffectsConfig.textSize = parseInt(e.target.value, 10) || 24;
                 updateCoverLivePreview();
             });
+
+            if (selectTextFont) {
+                selectTextFont.addEventListener("change", (e) => {
+                    coverEffectsConfig.textFont = e.target.value;
+                    updateCoverLivePreview();
+                });
+            }
+
+            if (selectTextBg) {
+                selectTextBg.addEventListener("change", (e) => {
+                    coverEffectsConfig.textBg = e.target.value;
+                    if (boxCustomBg) {
+                        boxCustomBg.style.display = (coverEffectsConfig.textBg === 'custom') ? "inline-flex" : "none";
+                    }
+                    updateCoverLivePreview();
+                });
+            }
+
+            if (inputBgColor) {
+                inputBgColor.addEventListener("input", (e) => {
+                    coverEffectsConfig.customTextBgColor = e.target.value;
+                    updateCoverLivePreview();
+                });
+            }
+
+            if (inputTextColor) {
+                inputTextColor.addEventListener("input", (e) => {
+                    coverEffectsConfig.customTextColor = e.target.value;
+                    updateCoverLivePreview();
+                });
+            }
         }
 
         /**
@@ -4784,11 +5643,11 @@
          *
          * @param {string} valStr - 用户输入的数值文本。
          * @param {'ms'|'s'} unit - 当前使用的单位。
-         * @returns {number} 解析出的合法毫秒数（保证不小于 50ms）。
+         * @returns {number} 解析出的合法毫秒数（支持 10ms ~ 60000ms 范围）。
          * @see Callers:
-         *  - `applyBatchDelay`
-         *  - `switchDelayUnit`
-         *  - `renderHiddenFrameList`
+         *  - `index.html:applyBatchDelay`
+         *  - `index.html:switchDelayUnit`
+         *  - `index.html:renderHiddenFrameList`
          */
         function parseDelayFromInput(valStr, unit) {
             if (unit === 's') {
@@ -4796,13 +5655,13 @@
                 if (isNaN(parsedSec) || parsedSec <= 0) {
                     return 100;
                 }
-                return Math.max(50, Math.round(parsedSec * 1000));
+                return Math.max(10, Math.min(60000, Math.round(parsedSec * 1000)));
             }
             const parsedMs = parseInt(valStr, 10);
             if (isNaN(parsedMs) || parsedMs <= 0) {
                 return 100;
             }
-            return Math.max(50, parsedMs);
+            return Math.max(10, Math.min(60000, parsedMs));
         }
 
         /**
@@ -4811,7 +5670,7 @@
          * @param {'ms'|'s'} newUnit - 目标时间单位。
          * @returns {void}
          * @see Callers:
-         *  - `selectDelayUnit.onchange`
+         *  - `index.html:selectDelayUnit.onchange`
          */
         function switchDelayUnit(newUnit) {
             const oldUnit = currentDelayUnit;
@@ -4820,12 +5679,14 @@
             const currentMs = parseDelayFromInput(batchInput.value, oldUnit);
 
             if (newUnit === 's') {
-                batchInput.min = "0.05";
-                batchInput.step = "0.05";
+                batchInput.min = "0.01";
+                batchInput.max = "60";
+                batchInput.step = "any";
                 batchInput.value = (currentMs / 1000).toFixed(2);
             } else {
-                batchInput.min = "50";
-                batchInput.step = "50";
+                batchInput.min = "10";
+                batchInput.max = "60000";
+                batchInput.step = "any";
                 batchInput.value = String(currentMs);
             }
 
@@ -4961,6 +5822,21 @@
          *  - `clearAllFrames`
          *  - `switchDelayUnit`
          */
+        /**
+         * 重新渲染隐藏项目帧列表视图、置顶批量时间轴工具栏及动画节奏综合统计看板。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:processHiddenFiles`
+         *  - `index.html:confirmMediaTrimmer`
+         *  - `index.html:reorderFrames`
+         *  - `index.html:reverseFramesOrder`
+         *  - `index.html:removeFrame`
+         *  - `index.html:clearAllFrames`
+         *  - `index.html:applyBatchDelay`
+         *  - `index.html:applySpeedMultiplier`
+         *  - `index.html:switchDelayUnit`
+         */
         function renderHiddenFrameList() {
             const listContainer = document.getElementById("hidden-frame-list");
             const badgeCount = document.getElementById("badge-frame-count");
@@ -4969,9 +5845,14 @@
             const uploadHiddenTitle = document.getElementById("upload-hidden-title");
 
             listContainer.innerHTML = "";
-            badgeCount.textContent = `已添加 ${hiddenFrames.length} 帧`;
+
+            // 动态计算全序列总时长与平均帧率
+            const totalDurationMs = hiddenFrames.reduce((acc, f) => acc + (f.delayMs || 100), 0);
+            const avgDelayMs = hiddenFrames.length > 0 ? totalDurationMs / hiddenFrames.length : 0;
+            const effectiveFps = avgDelayMs > 0 ? (1000 / avgDelayMs).toFixed(1) : "0";
 
             if (hiddenFrames.length === 0) {
+                badgeCount.textContent = "已添加 0 帧";
                 batchToolbar.style.display = "none";
                 if (dropHidden) {
                     dropHidden.classList.remove("compact");
@@ -4985,7 +5866,9 @@
                 return;
             }
 
+            badgeCount.textContent = `已添加 ${hiddenFrames.length} 帧 · ${(totalDurationMs / 1000).toFixed(2)}s (约 ${effectiveFps} fps)`;
             batchToolbar.style.display = "flex";
+
             if (dropHidden) {
                 dropHidden.classList.add("compact");
                 dropHidden.style.minHeight = "";
@@ -4996,6 +5879,10 @@
             }
 
             hiddenFrames.forEach((frame, index) => {
+                if (!frame.baseDelayMs) {
+                    frame.baseDelayMs = frame.delayMs || 100;
+                }
+
                 const itemDiv = document.createElement("div");
                 itemDiv.className = "frame-item";
                 itemDiv.draggable = true;
@@ -5004,7 +5891,7 @@
                 const dragHandle = document.createElement("span");
                 dragHandle.className = "frame-drag-handle";
                 dragHandle.textContent = "⠿";
-                dragHandle.title = "长按或拖拽调整帧顺序";
+                dragHandle.title = "按住拖拽调整此帧排列顺序";
                 itemDiv.appendChild(dragHandle);
 
                 // 原生 HTML5 拖拽事件绑定
@@ -5066,65 +5953,65 @@
                 metaDiv.appendChild(nameDiv);
                 metaDiv.appendChild(sizeDiv);
 
-                const delayControl = document.createElement("div");
-                delayControl.className = "frame-delay-control";
+                // 现代化单帧时长胶囊组件 (Duration Pill)
+                const delayPill = document.createElement("div");
+                delayPill.className = "frame-duration-pill";
+                delayPill.title = "点击直接修改单帧停留时长（无生硬步长限制）";
+
                 const delayInput = document.createElement("input");
                 delayInput.type = "number";
-                if (currentDelayUnit === 's') {
-                    delayInput.min = "0.05";
-                    delayInput.step = "0.05";
-                    delayInput.value = (frame.delayMs / 1000).toFixed(2);
-                } else {
-                    delayInput.min = "50";
-                    delayInput.step = "50";
-                    delayInput.value = frame.delayMs;
-                }
-                delayInput.className = "frame-delay-input";
-                delayInput.onchange = () => {
+                delayInput.step = "any";
+                delayInput.min = (currentDelayUnit === 's') ? "0.01" : "10";
+                delayInput.max = (currentDelayUnit === 's') ? "60" : "60000";
+                delayInput.value = formatDelayForDisplay(frame.delayMs, currentDelayUnit);
+                delayInput.className = "frame-duration-input";
+                delayInput.setAttribute("aria-label", `第 ${index + 1} 帧停留时长`);
+
+                const commitDelayChange = () => {
                     const parsedMs = parseDelayFromInput(delayInput.value, currentDelayUnit);
                     frame.delayMs = parsedMs;
+                    frame.baseDelayMs = parsedMs;
                     delayInput.value = formatDelayForDisplay(frame.delayMs, currentDelayUnit);
+
+                    // 实时刷新头部总时长与平均帧率
+                    const newTotal = hiddenFrames.reduce((acc, f) => acc + (f.delayMs || 100), 0);
+                    const newAvg = hiddenFrames.length > 0 ? newTotal / hiddenFrames.length : 0;
+                    const newFps = newAvg > 0 ? (1000 / newAvg).toFixed(1) : "0";
+                    badgeCount.textContent = `已添加 ${hiddenFrames.length} 帧 · ${(newTotal / 1000).toFixed(2)}s (约 ${newFps} fps)`;
                 };
 
+                delayInput.addEventListener("change", commitDelayChange);
+                delayInput.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter") {
+                        commitDelayChange();
+                        delayInput.blur();
+                    }
+                });
+
                 const delayUnit = document.createElement("span");
-                delayUnit.className = "frame-delay-unit";
+                delayUnit.className = "frame-duration-unit";
                 delayUnit.textContent = currentDelayUnit;
-                delayControl.appendChild(delayInput);
-                delayControl.appendChild(delayUnit);
 
-                const actionsDiv = document.createElement("div");
-                actionsDiv.className = "frame-actions";
+                delayPill.appendChild(delayInput);
+                delayPill.appendChild(delayUnit);
 
-                if (index > 0) {
-                    const btnUp = document.createElement("button");
-                    btnUp.className = "btn-icon";
-                    btnUp.textContent = "↑";
-                    btnUp.title = "上移此帧";
-                    btnUp.onclick = () => moveFrame(index, -1);
-                    actionsDiv.appendChild(btnUp);
-                }
-
-                if (index < hiddenFrames.length - 1) {
-                    const btnDown = document.createElement("button");
-                    btnDown.className = "btn-icon";
-                    btnDown.textContent = "↓";
-                    btnDown.title = "下移此帧";
-                    btnDown.onclick = () => moveFrame(index, 1);
-                    actionsDiv.appendChild(btnDown);
-                }
-
+                // 幽灵删除操作按钮 (Ghost Delete Action)
                 const btnDelete = document.createElement("button");
-                btnDelete.className = "btn-icon danger";
+                btnDelete.type = "button";
+                btnDelete.className = "btn-delete-frame";
                 btnDelete.textContent = "×";
                 btnDelete.title = "删除此帧";
-                btnDelete.onclick = () => removeFrame(index);
-                actionsDiv.appendChild(btnDelete);
+                btnDelete.setAttribute("aria-label", `删除第 ${index + 1} 帧`);
+                btnDelete.onclick = (e) => {
+                    e.stopPropagation();
+                    removeFrame(index);
+                };
 
                 itemDiv.appendChild(indexSpan);
                 itemDiv.appendChild(thumbImg);
                 itemDiv.appendChild(metaDiv);
-                itemDiv.appendChild(delayControl);
-                itemDiv.appendChild(actionsDiv);
+                itemDiv.appendChild(delayPill);
+                itemDiv.appendChild(btnDelete);
 
                 listContainer.appendChild(itemDiv);
             });
@@ -5140,7 +6027,7 @@
          * @param {number} targetIndex - 期望插入的目标索引。
          * @returns {void}
          * @see Callers:
-         *  - `renderHiddenFrameList` (drop 事件)
+         *  - `index.html:renderHiddenFrameList` (drop 事件)
          */
         function reorderFrames(srcIndex, targetIndex) {
             if (srcIndex < 0 || srcIndex >= hiddenFrames.length || targetIndex < 0 || targetIndex >= hiddenFrames.length) {
@@ -5157,7 +6044,7 @@
          *
          * @returns {void}
          * @see Callers:
-         *  - `btnReverseFrames.onclick`
+         *  - `index.html:btnReverseFrames.onclick`
          */
         function reverseFramesOrder() {
             if (hiddenFrames.length < 2) {
@@ -5170,33 +6057,12 @@
         }
 
         /**
-         * 调整隐藏图片帧顺序。
-         *
-         * @param {number} index - 当前帧索引。
-         * @param {number} direction - 移动偏移（-1 为上移，1 为下移）。
-         * @returns {void}
-         * @see Callers:
-         *  - `renderHiddenFrameList.btnUp.onclick`
-         *  - `renderHiddenFrameList.btnDown.onclick`
-         */
-        function moveFrame(index, direction) {
-            const targetIndex = index + direction;
-            if (targetIndex < 0 || targetIndex >= hiddenFrames.length) {
-                return;
-            }
-            const temp = hiddenFrames[index];
-            hiddenFrames[index] = hiddenFrames[targetIndex];
-            hiddenFrames[targetIndex] = temp;
-            renderHiddenFrameList();
-        }
-
-        /**
          * 删除单张隐藏帧。
          *
          * @param {number} index - 待删除帧索引。
          * @returns {void}
          * @see Callers:
-         *  - `renderHiddenFrameList.btnDelete.onclick`
+         *  - `index.html:renderHiddenFrameList.btnDelete.onclick`
          */
         function removeFrame(index) {
             hiddenFrames.splice(index, 1);
@@ -5206,16 +6072,71 @@
         }
 
         /**
+         * 按指定倍速因子等比例缩放当前全部隐藏帧的停留时长，并刷新视图与统计指标。
+         *
+         * @param {number} factor - 倍速因子（例如 0.5、1.0、1.5、2.0）。
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:setupBatchSpeedEvents`
+         */
+        function applySpeedMultiplier(factor) {
+            if (hiddenFrames.length === 0 || factor <= 0) return;
+
+            hiddenFrames.forEach((f) => {
+                if (!f.baseDelayMs) {
+                    f.baseDelayMs = f.delayMs || 100;
+                }
+                f.delayMs = Math.max(10, Math.min(60000, Math.round(f.baseDelayMs / factor)));
+            });
+
+            const speedBtns = document.querySelectorAll(".btn-speed-preset");
+            speedBtns.forEach((btn) => {
+                const btnSpeed = parseFloat(btn.dataset.speed);
+                btn.classList.toggle("active", Math.abs(btnSpeed - factor) < 0.01);
+            });
+
+            renderHiddenFrameList();
+            showToast(`已切换为 ${factor}x 播放倍速`, "success", 1200);
+        }
+
+        /**
+         * 初始化批量倍速预设按钮点击监听事件。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:window.DOMContentLoaded`
+         */
+        function setupBatchSpeedEvents() {
+            const speedBtns = document.querySelectorAll(".btn-speed-preset");
+            speedBtns.forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    const speed = parseFloat(btn.dataset.speed);
+                    if (!isNaN(speed)) {
+                        applySpeedMultiplier(speed);
+                    }
+                });
+            });
+        }
+
+        /**
          * 批量将指定时长同步至所有隐藏帧。
          *
          * @returns {void}
          * @see Callers:
-         *  - `btnApplyBatchDelay.onclick`
+         *  - `index.html:btnApplyBatchDelay.onclick`
          */
         function applyBatchDelay() {
             const rawVal = document.getElementById("input-batch-delay").value;
             const parsedMs = parseDelayFromInput(rawVal, currentDelayUnit);
-            hiddenFrames.forEach(f => { f.delayMs = parsedMs; });
+            hiddenFrames.forEach(f => { 
+                f.delayMs = parsedMs; 
+                f.baseDelayMs = parsedMs;
+            });
+            const speedBtns = document.querySelectorAll(".btn-speed-preset");
+            speedBtns.forEach((btn) => {
+                const btnSpeed = parseFloat(btn.dataset.speed);
+                btn.classList.toggle("active", Math.abs(btnSpeed - 1.0) < 0.01);
+            });
             renderHiddenFrameList();
             showToast(`已批量将所有帧停留时长更新为 ${formatDelayForDisplay(parsedMs, currentDelayUnit)}${currentDelayUnit}`, "success");
         }
@@ -5225,7 +6146,7 @@
          *
          * @returns {void}
          * @see Callers:
-         *  - `btnClearAllFrames.onclick`
+         *  - `index.html:btnClearAllFrames.onclick`
          */
         function clearAllFrames() {
             if (hiddenFrames.length === 0) return;
@@ -5687,12 +6608,13 @@
                 const timeStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
 
                 let coverSummary = "";
+                const opacityStr = currentCoverOpacity < 100 ? ` (${currentCoverOpacity}%)` : "";
                 if (currentCoverMode === 'color') {
-                    coverSummary = `纯色 ${currentCoverColor}`;
+                    coverSummary = currentCoverColor === 'TRANSPARENT' || currentCoverOpacity === 0 ? "纯色: 全透明" : `纯色: ${currentCoverColor}${opacityStr}`;
                 } else if (currentCoverMode === 'image') {
-                    coverSummary = `图片: ${coverImageState.file ? coverImageState.file.name : "自定义图片"}`;
+                    coverSummary = `图片${opacityStr}: ${coverImageState.file ? coverImageState.file.name : "自定义图片"}`;
                 } else {
-                    coverSummary = `隐藏帧: 第 ${currentCoverFrameIndex + 1} 帧`;
+                    coverSummary = `隐藏帧${opacityStr}: 第 ${currentCoverFrameIndex + 1} 帧`;
                 }
 
                 const effectsTags = [];
@@ -5756,11 +6678,11 @@
         }
 
         /**
-         * 获取当前生效或存储的主题模式。若用户未曾手动选择，则自动检测系统主题外观。
+         * 获取当前生效或持久化的主题模式。若用户未曾手动选择，则自动检测操作系统外观偏好。
          *
-         * @returns {'dark' | 'light'} 返回当前主题（'dark' 或 'light'）。
+         * @returns {'dark' | 'light'} 返回判定出的主题模式标识。
          * @see Callers:
-         *  - `setupThemeSwitcher`
+         *  - `index.html:setupThemeSwitcher`
          */
         function getInitialTheme() {
             const saved = localStorage.getItem("apng_theme_mode");
@@ -5771,13 +6693,14 @@
         }
 
         /**
-         * 应用指定的主题模式（仅限 'dark' 与 'light' 两态）并更新 UI 高亮与本地存储。
+         * 应用指定的主题模式并同步更新 DOM 根节点属性、顶栏快捷切换控件外观与本地存储。
          *
-         * @param {'dark' | 'light'} theme - 期望生效的主题模式。
-         * @param {boolean} [persist=true] - 是否将用户偏好显式持久化至本地存储。
+         * @param {'dark' | 'light'} theme - 期望生效的目标主题模式。
+         * @param {boolean} [persist=true] - 是否将用户选择持久化至 localStorage。
          * @returns {void}
          * @see Callers:
-         *  - `setupThemeSwitcher`
+         *  - `index.html:setupThemeSwitcher`
+         *  - `index.html:toggleTheme`
          */
         function applyTheme(theme, persist = true) {
             const effectiveTheme = (theme === 'light') ? 'light' : 'dark';
@@ -5787,22 +6710,36 @@
                 localStorage.setItem("apng_theme_mode", effectiveTheme);
             }
 
-            const themeButtons = document.querySelectorAll(".theme-btn");
-            themeButtons.forEach(btn => {
-                if (btn.getAttribute("data-theme-val") === effectiveTheme) {
-                    btn.classList.add("active");
-                } else {
-                    btn.classList.remove("active");
-                }
-            });
+            const toggleBtn = document.getElementById("quick-theme-toggle");
+            const toggleLabel = document.getElementById("theme-toggle-text");
+            if (toggleBtn) {
+                toggleBtn.setAttribute("data-current-theme", effectiveTheme);
+                toggleBtn.setAttribute("title", effectiveTheme === 'dark' ? "当前为暗色模式，点击快捷切换为亮色" : "当前为亮色模式，点击快捷切换为暗色");
+            }
+            if (toggleLabel) {
+                toggleLabel.textContent = effectiveTheme === 'dark' ? "暗色" : "亮色";
+            }
         }
 
         /**
-         * 初始化两态主题切换器交互事件与系统主题变化实时监听器。
+         * 快速在深色模式与浅色模式之间进行双向交替切换并触发持久化。
          *
          * @returns {void}
          * @see Callers:
-         *  - `window.DOMContentLoaded`
+         *  - `index.html:setupThemeSwitcher`
+         */
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'dark' ? 'light' : 'dark';
+            applyTheme(next, true);
+        }
+
+        /**
+         * 初始化顶栏快捷主题切换按钮交互事件与系统外观模式变动的实时监听器。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:window.DOMContentLoaded`
          */
         function setupThemeSwitcher() {
             const saved = localStorage.getItem("apng_theme_mode");
@@ -5811,15 +6748,10 @@
 
             applyTheme(activeTheme, hasUserChoice);
 
-            const themeButtons = document.querySelectorAll(".theme-btn");
-            themeButtons.forEach(btn => {
-                btn.addEventListener("click", () => {
-                    const chosen = btn.getAttribute("data-theme-val");
-                    if (chosen === 'dark' || chosen === 'light') {
-                        applyTheme(chosen, true);
-                    }
-                });
-            });
+            const toggleBtn = document.getElementById("quick-theme-toggle");
+            if (toggleBtn) {
+                toggleBtn.addEventListener("click", toggleTheme);
+            }
 
             // 支持系统主题变动实时侦测（若用户尚未显式固定偏好）
             if (window.matchMedia) {
@@ -5838,7 +6770,7 @@
          *
          * @returns {void}
          * @see Callers:
-         *  - `window.DOMContentLoaded`
+         *  - `index.html:window.DOMContentLoaded`
          */
         function setupKeyboardShortcuts() {
             window.addEventListener("keydown", (e) => {
@@ -5868,7 +6800,339 @@
             });
         }
 
+        /**
+         * 将原生 HTMLSelectElement 渐进增强封装为现代化自定义浮动下拉选择组件。
+         *
+         * 构建独立的触发器（Trigger）与浮动菜单（Dropdown Menu），自动同步选中项文本、禁态
+         * 与选项列表，并通过 MutationObserver 实时感知 options 与 disabled 属性的动态更新。
+         * 选中任何选项后自动回填原生 select 并派发标准 change 事件。
+         *
+         * @param {HTMLSelectElement} select - 需要被增强的原生下拉选择框 DOM 节点。
+         * @returns {HTMLElement} 返回构建出的自定义下拉组件外层容器。
+         * @see Callers:
+         *  - `index.html:initCustomDropdowns`
+         */
+        function enhanceSelectElement(select) {
+            if (!select || select.dataset.customEnhanced === "true") {
+                return select ? select.parentElement : null;
+            }
+            select.dataset.customEnhanced = "true";
+            select.classList.add("enhanced-select-native");
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "custom-select-wrapper";
+            if (select.id) {
+                wrapper.dataset.selectId = select.id;
+            }
+
+            const trigger = document.createElement("button");
+            trigger.type = "button";
+            trigger.className = "custom-select-trigger";
+            trigger.setAttribute("aria-haspopup", "listbox");
+            trigger.setAttribute("aria-expanded", "false");
+
+            const textSpan = document.createElement("span");
+            textSpan.className = "custom-select-text";
+
+            const arrowSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            arrowSvg.setAttribute("class", "custom-select-arrow");
+            arrowSvg.setAttribute("viewBox", "0 0 24 24");
+            arrowSvg.setAttribute("fill", "none");
+            arrowSvg.setAttribute("stroke", "currentColor");
+            arrowSvg.setAttribute("stroke-width", "2");
+            arrowSvg.setAttribute("stroke-linecap", "round");
+            arrowSvg.setAttribute("stroke-linejoin", "round");
+            const arrowPolyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+            arrowPolyline.setAttribute("points", "6 9 12 15 18 9");
+            arrowSvg.appendChild(arrowPolyline);
+
+            trigger.appendChild(textSpan);
+            trigger.appendChild(arrowSvg);
+
+            const menu = document.createElement("div");
+            menu.className = "custom-select-menu";
+            menu.setAttribute("role", "listbox");
+
+            const list = document.createElement("div");
+            list.className = "custom-select-list";
+
+            const scrollbarThumb = document.createElement("div");
+            scrollbarThumb.className = "custom-select-scrollbar-thumb";
+
+            menu.appendChild(list);
+            menu.appendChild(scrollbarThumb);
+
+            const updateScrollbarThumb = () => {
+                if (list.scrollHeight <= list.clientHeight) {
+                    scrollbarThumb.style.display = "none";
+                    return;
+                }
+                scrollbarThumb.style.display = "block";
+                const padding = 4;
+                const trackHeight = menu.clientHeight - padding * 2;
+                const thumbHeight = Math.max(18, (list.clientHeight / list.scrollHeight) * trackHeight);
+                const maxScroll = list.scrollHeight - list.clientHeight;
+                const scrollRatio = maxScroll > 0 ? (list.scrollTop / maxScroll) : 0;
+                const thumbTop = padding + scrollRatio * (trackHeight - thumbHeight);
+                scrollbarThumb.style.height = `${thumbHeight}px`;
+                scrollbarThumb.style.top = `${thumbTop}px`;
+            };
+            wrapper._updateScrollbarThumb = updateScrollbarThumb;
+
+            let scrollTimer = null;
+            list.addEventListener("scroll", () => {
+                updateScrollbarThumb();
+                menu.classList.add("is-scrolling");
+                if (scrollTimer) clearTimeout(scrollTimer);
+                scrollTimer = setTimeout(() => {
+                    menu.classList.remove("is-scrolling");
+                }, 800);
+            }, { passive: true });
+
+            const syncMenuOptions = () => {
+                list.innerHTML = "";
+                const options = Array.from(select.options);
+                let selectedFound = false;
+
+                options.forEach((opt) => {
+                    const item = document.createElement("div");
+                    item.className = "custom-select-option";
+                    item.setAttribute("role", "option");
+                    item.dataset.value = opt.value;
+
+                    const textNode = document.createElement("span");
+                    textNode.className = "custom-select-option-text";
+                    textNode.textContent = opt.textContent;
+
+                    const checkNode = document.createElement("span");
+                    checkNode.className = "custom-select-option-check";
+                    checkNode.setAttribute("aria-hidden", "true");
+
+                    const checkSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    checkSvg.setAttribute("viewBox", "0 0 16 16");
+                    checkSvg.setAttribute("width", "13");
+                    checkSvg.setAttribute("height", "13");
+                    checkSvg.setAttribute("fill", "none");
+                    checkSvg.setAttribute("stroke", "currentColor");
+                    checkSvg.setAttribute("stroke-width", "2");
+                    checkSvg.setAttribute("stroke-linecap", "round");
+                    checkSvg.setAttribute("stroke-linejoin", "round");
+
+                    const checkPoly = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+                    checkPoly.setAttribute("points", "3.5 8.5 6.5 11.5 12.5 4.5");
+                    checkSvg.appendChild(checkPoly);
+                    checkNode.appendChild(checkSvg);
+
+                    item.appendChild(textNode);
+                    item.appendChild(checkNode);
+
+                    if (opt.selected) {
+                        item.classList.add("selected");
+                        item.setAttribute("aria-selected", "true");
+                        textSpan.textContent = opt.textContent;
+                        selectedFound = true;
+                    }
+
+                    item.addEventListener("click", (e) => {
+                        e.stopPropagation();
+                        if (select.disabled) return;
+                        if (select.value !== opt.value) {
+                            select.value = opt.value;
+                            select.dispatchEvent(new Event("change", { bubbles: true }));
+                        }
+                        closeAllCustomDropdowns();
+                    });
+
+                    list.appendChild(item);
+                });
+
+                if (!selectedFound && options.length > 0) {
+                    textSpan.textContent = options[0].textContent;
+                } else if (options.length === 0) {
+                    textSpan.textContent = "无选项";
+                }
+
+                trigger.disabled = select.disabled;
+                if (select.disabled) {
+                    wrapper.classList.add("disabled");
+                } else {
+                    wrapper.classList.remove("disabled");
+                }
+
+                // 统一收起与展开状态的宽度规范：根据全部选项自然排布的最大宽度为容器设置稳定基准宽度
+                if (!wrapper.classList.contains("full-width")) {
+                    menu.style.visibility = "hidden";
+                    menu.style.display = "block";
+                    menu.style.position = "absolute";
+                    menu.style.width = "max-content";
+                    const naturalWidth = Math.ceil(menu.offsetWidth);
+                    menu.style.visibility = "";
+                    menu.style.display = "";
+                    menu.style.position = "";
+                    menu.style.width = "";
+                    if (naturalWidth > 0) {
+                        wrapper.style.minWidth = `${Math.max(64, naturalWidth)}px`;
+                    }
+                }
+
+                updateScrollbarThumb();
+            };
+
+            trigger.addEventListener("click", (e) => {
+                e.stopPropagation();
+                if (select.disabled) return;
+                const isOpen = wrapper.classList.contains("open");
+                closeAllCustomDropdowns();
+                if (!isOpen) {
+                    const rect = trigger.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    if (spaceBelow < 250 && rect.top > 250) {
+                        menu.classList.add("drop-up");
+                    } else {
+                        menu.classList.remove("drop-up");
+                    }
+                    wrapper.classList.add("open");
+                    trigger.setAttribute("aria-expanded", "true");
+                    updateScrollbarThumb();
+
+                    const selectedItem = list.querySelector(".custom-select-option.selected");
+                    if (selectedItem) {
+                        selectedItem.scrollIntoView({ block: "nearest" });
+                        updateScrollbarThumb();
+                    }
+                }
+            });
+
+            select.addEventListener("change", () => {
+                const selectedOpt = select.selectedOptions[0];
+                if (selectedOpt) {
+                    textSpan.textContent = selectedOpt.textContent;
+                }
+                const items = list.querySelectorAll(".custom-select-option");
+                items.forEach((it) => {
+                    if (it.dataset.value === select.value) {
+                        it.classList.add("selected");
+                        it.setAttribute("aria-selected", "true");
+                    } else {
+                        it.classList.remove("selected");
+                        it.removeAttribute("aria-selected");
+                    }
+                });
+            });
+
+            const observer = new MutationObserver(() => {
+                syncMenuOptions();
+            });
+            observer.observe(select, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
+
+            // 先将外层容器与结构挂载入 DOM 树，再执行选项同步与尺寸自然校准
+            select.parentNode.insertBefore(wrapper, select);
+            wrapper.appendChild(select);
+            wrapper.appendChild(trigger);
+            wrapper.appendChild(menu);
+
+            syncMenuOptions();
+
+            return wrapper;
+        }
+
+        /**
+         * 关闭当前页面上所有处于展开状态的自定义下拉菜单。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:enhanceSelectElement`
+         *  - `index.html:initCustomDropdowns`
+         */
+        function closeAllCustomDropdowns() {
+            const wrappers = document.querySelectorAll(".custom-select-wrapper.open");
+            wrappers.forEach((w) => {
+                w.classList.remove("open");
+                const trigger = w.querySelector(".custom-select-trigger");
+                if (trigger) {
+                    trigger.setAttribute("aria-expanded", "false");
+                }
+            });
+        }
+
+        /**
+         * 扫描并初始化当前页面内所有原生下拉框组件，挂载全局点击遮罩收起与 Esc 键盘监听。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:window.DOMContentLoaded`
+         */
+        function initCustomDropdowns() {
+            const selects = document.querySelectorAll("select");
+            selects.forEach((sel) => {
+                enhanceSelectElement(sel);
+            });
+
+            document.addEventListener("click", (e) => {
+                if (!e.target.closest(".custom-select-wrapper")) {
+                    closeAllCustomDropdowns();
+                }
+            });
+
+            window.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") {
+                    closeAllCustomDropdowns();
+                }
+            });
+
+            window.addEventListener("resize", () => {
+                const openWrapper = document.querySelector(".custom-select-wrapper.open");
+                if (openWrapper && openWrapper._updateScrollbarThumb) {
+                    openWrapper._updateScrollbarThumb();
+                }
+            });
+        }
+
+        /**
+         * 初始化全局覆盖式滚动条自动显隐监听器。
+         *
+         * 在事件捕获阶段监听全局及各子容器（自定义下拉菜单、帧列表、弹窗主体等）的滚动事件，
+         * 在滚动激活期间动态为对应容器添加 `is-scrolling` 样式类以触发平滑微型半透明滑块显现；
+         * 停止滚动 800ms 后自动清除样式类以恢复完全隐形状态，全程不挤占任何布局排版宽度。
+         *
+         * @returns {void}
+         * @see Callers:
+         *  - `index.html:window.DOMContentLoaded`
+         */
+        function initAutoHidingScrollbars() {
+            const scrollTimers = new WeakMap();
+
+            document.addEventListener("scroll", (e) => {
+                const target = e.target;
+                const container = (target === document || target === document.documentElement)
+                    ? document.documentElement
+                    : target;
+
+                if (!container || !container.classList) return;
+
+                container.classList.add("is-scrolling");
+
+                const existingTimer = scrollTimers.get(container);
+                if (existingTimer) {
+                    clearTimeout(existingTimer);
+                }
+
+                const newTimer = setTimeout(() => {
+                    container.classList.remove("is-scrolling");
+                    scrollTimers.delete(container);
+                }, 800);
+
+                scrollTimers.set(container, newTimer);
+            }, { capture: true, passive: true });
+        }
+
         window.addEventListener("DOMContentLoaded", () => {
+            // 初始化全局覆盖式滚动条自动显隐系统
+            initAutoHidingScrollbars();
+
+            // 初始化全页面现代化自定义下拉组件
+            initCustomDropdowns();
+
             // 初始化主题切换与系统监听
             setupThemeSwitcher();
 
@@ -5881,6 +7145,14 @@
             setupCoverEffectsControls();
             updateCoverLivePreview();
 
+            // 封面底图不透明度滑块事件监听
+            const inputCoverOpacity = document.getElementById("input-cover-opacity");
+            if (inputCoverOpacity) {
+                inputCoverOpacity.addEventListener("input", (e) => {
+                    updateCoverOpacity(parseInt(e.target.value, 10));
+                });
+            }
+
             // 颜色选择交互
             const inputCoverColor = document.getElementById("input-cover-color");
             const inputCoverHex = document.getElementById("input-cover-hex");
@@ -5888,6 +7160,10 @@
             inputCoverColor.addEventListener("input", (e) => updateCoverColor(e.target.value));
             inputCoverHex.addEventListener("change", (e) => {
                 let val = e.target.value.trim();
+                if (val.toLowerCase() === 'transparent') {
+                    updateCoverColor('transparent');
+                    return;
+                }
                 if (!val.startsWith("#")) {
                     val = "#" + val;
                 }
@@ -5918,8 +7194,14 @@
             setupKeyboardShortcuts();
 
             // 批量操作与单位切换
+            setupBatchSpeedEvents();
             document.getElementById("select-delay-unit").addEventListener("change", (e) => switchDelayUnit(e.target.value));
             document.getElementById("btn-apply-batch-delay").addEventListener("click", applyBatchDelay);
+            document.getElementById("input-batch-delay").addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    applyBatchDelay();
+                }
+            });
             document.getElementById("btn-clear-all-frames").addEventListener("click", clearAllFrames);
             document.getElementById("btn-reverse-frames").addEventListener("click", reverseFramesOrder);
 
