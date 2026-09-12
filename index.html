@@ -5782,11 +5782,11 @@
                         await new Promise((resolve, reject) => {
                             const img = new Image();
                             img.onload = () => {
-                                URL.revokeObjectURL(blobUrl);
                                 hiddenFrames.push({
                                     id: `frame_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                                     img: img,
                                     file: file,
+                                    blobUrl: blobUrl,
                                     title: `${file.name} [${detected.formatLabel}]`,
                                     width: img.naturalWidth,
                                     height: img.naturalHeight,
@@ -6297,7 +6297,10 @@
          *  - `index.html:renderHiddenFrameList.btnDelete.onclick`
          */
         function removeFrame(index) {
-            hiddenFrames.splice(index, 1);
+            const removed = hiddenFrames.splice(index, 1);
+            if (removed[0] && removed[0].blobUrl) {
+                URL.revokeObjectURL(removed[0].blobUrl);
+            }
             renderHiddenFrameList();
             checkReadyState();
             showToast("已移除 1 个隐藏帧", "info", 1500);
@@ -6382,6 +6385,7 @@
          */
         function clearAllFrames() {
             if (hiddenFrames.length === 0) return;
+            hiddenFrames.forEach(f => { if (f.blobUrl) URL.revokeObjectURL(f.blobUrl); });
             hiddenFrames = [];
             renderHiddenFrameList();
             checkReadyState();
