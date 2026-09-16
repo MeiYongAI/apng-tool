@@ -547,6 +547,7 @@
             flex-direction: row;
             align-items: center;
             justify-content: center;
+            flex-wrap: wrap;
             gap: 8px;
             border-style: dashed;
             background: var(--card-sub-bg);
@@ -557,9 +558,16 @@
             font-weight: 500;
         }
         .upload-card.compact .upload-hint,
-        .upload-card.compact .wme-row-center,
         .upload-card.compact .file-info {
             display: none;
+        }
+        /* 紧凑状态保留剪贴板粘贴按钮，保证追加导入时可反复从剪贴板粘贴 */
+        .upload-card.compact .wme-row-center {
+            margin-top: 0;
+            flex-shrink: 0;
+        }
+        .upload-card.compact .btn-clipboard-paste {
+            padding: 3px 9px;
         }
         .upload-card.compact .upload-plus-icon {
             display: inline-block;
