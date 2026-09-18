@@ -2530,6 +2530,7 @@
             transition: all 0.15s;
             text-align: center;
             text-decoration: none;
+            white-space: nowrap;
         }
         .btn-history-action:hover {
             background: var(--theme-toggle-btn-hover);
@@ -10430,7 +10431,7 @@
 
                 const btnPlay = document.createElement("button");
                 btnPlay.className = "btn-history-action btn-hist-play";
-                btnPlay.textContent = "播放预览";
+                btnPlay.textContent = "播放";
                 btnPlay.onclick = () => {
                     const url = URL.createObjectURL(rec.apngBlob);
                     displayApngResult(url, `apng_history_${rec.id}.png`, rec.apngBlob);
@@ -10443,7 +10444,7 @@
 
                 const btnDownload = document.createElement("a");
                 btnDownload.className = "btn-history-action";
-                btnDownload.textContent = "下载文件";
+                btnDownload.textContent = "下载";
                 btnDownload.href = URL.createObjectURL(rec.apngBlob);
                 btnDownload.download = `apng_disguise_${rec.id}.png`;
 
