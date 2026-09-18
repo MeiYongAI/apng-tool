@@ -2389,6 +2389,37 @@
         .btn-download:active {
             transform: translateY(0) scale(0.99);
         }
+        .result-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+        .btn-copy-result {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 11px 22px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-main);
+            background: var(--card-sub-bg);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-copy-result:hover {
+            color: var(--primary);
+            background: var(--primary-soft);
+            border-color: var(--primary-border);
+            transform: translateY(-1px);
+        }
+        .btn-copy-result:active {
+            transform: translateY(0) scale(0.99);
+        }
 
         /* 制作历史区域 */
         .history-section {
@@ -3513,6 +3544,7 @@
         <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
         <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></symbol>
         <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
         <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></symbol>
         <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8V4z"/></symbol>
         <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></symbol>
@@ -3849,7 +3881,10 @@
                     <img id="result-img" alt="生成图像预览" />
                 </div>
             </div>
-            <a id="btn-download" class="btn-download" download="disguise_image.png"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg> 下载合成图片 (.png)</a>
+            <div class="result-actions">
+                <a id="btn-download" class="btn-download" download="disguise_image.png"><svg class="icon" aria-hidden="true"><use href="#i-download"/></svg> 下载合成图片 (.png)</a>
+                <button type="button" id="btn-copy-result" class="btn-copy-result" title="复制合成结果到系统剪贴板，可直接粘贴到聊天窗口或图像软件"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>复制到剪贴板</button>
+            </div>
         </div>
     </div>
 
@@ -7833,6 +7868,15 @@
                     handleClipboardPaste('hidden');
                 });
             }
+
+            // 12. 合成结果"复制到剪贴板"按钮绑定
+            const btnCopyResult = document.getElementById("btn-copy-result");
+            if (btnCopyResult) {
+                btnCopyResult.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    copyImageBlobToClipboard(currentResultBlob);
+                });
+            }
         }
 
         /**
@@ -10389,8 +10433,13 @@
                 btnPlay.textContent = "播放预览";
                 btnPlay.onclick = () => {
                     const url = URL.createObjectURL(rec.apngBlob);
-                    displayApngResult(url, `apng_history_${rec.id}.png`);
+                    displayApngResult(url, `apng_history_${rec.id}.png`, rec.apngBlob);
                 };
+
+                const btnCopy = document.createElement("button");
+                btnCopy.className = "btn-history-action";
+                btnCopy.textContent = "复制";
+                btnCopy.onclick = () => copyImageBlobToClipboard(rec.apngBlob);
 
                 const btnDownload = document.createElement("a");
                 btnDownload.className = "btn-history-action";
@@ -10407,6 +10456,7 @@
                 };
 
                 actions.appendChild(btnPlay);
+                actions.appendChild(btnCopy);
                 actions.appendChild(btnDownload);
                 actions.appendChild(btnDelete);
 
@@ -10417,17 +10467,21 @@
             });
         }
 
+        // 最近一次合成/预览的产物 Blob，供"复制到剪贴板"直接写入使用
+        let currentResultBlob = null;
+
         /**
          * 将 APNG 生成产物载入结果预览区域。
          *
          * @param {string} url - Blob 访问 URL。
          * @param {string} fileName - 建议下载文件名。
+         * @param {Blob} [blob] - 生成产物二进制对象，供"复制到剪贴板"直接写入使用。
          * @returns {void}
          * @see Callers:
          *  - `onGenerateClick`
          *  - `refreshHistoryView.btnPlay.onclick`
          */
-        function displayApngResult(url, fileName) {
+        function displayApngResult(url, fileName, blob) {
             const resultSection = document.getElementById("result-section");
             const resultImg = document.getElementById("result-img");
             const btnDownload = document.getElementById("btn-download");
@@ -10435,9 +10489,38 @@
             resultImg.src = url;
             btnDownload.href = url;
             btnDownload.download = fileName;
+            currentResultBlob = blob || null;
 
             resultSection.style.display = "block";
             resultSection.scrollIntoView({ behavior: "smooth" });
+        }
+
+        /**
+         * 将指定图像 Blob（APNG 伪装 PNG）写入系统剪贴板。
+         *
+         * @param {Blob} [blob] - 待写入的图像二进制对象，缺省时取最近一次合成产物。
+         * @returns {Promise<void>}
+         * @see Callers:
+         *  - `btnCopyResult.onclick`
+         *  - `refreshHistoryView.btnCopy.onclick`
+         */
+        async function copyImageBlobToClipboard(blob) {
+            const target = blob || currentResultBlob;
+            if (!target) {
+                showToast("暂无可复制的图片，请先完成一次合成", "warning");
+                return;
+            }
+            if (!navigator.clipboard || typeof navigator.clipboard.write !== "function" || typeof ClipboardItem === "undefined") {
+                showToast("当前浏览器不支持复制图片到剪贴板，请改用下载功能", "warning", 3000);
+                return;
+            }
+            try {
+                // Blob 已在内存中，同步传入 ClipboardItem 以满足浏览器"用户手势周期内写入"的要求
+                await navigator.clipboard.write([new ClipboardItem({ "image/png": target })]);
+                showToast("已复制到剪贴板，可直接粘贴使用（部分应用粘贴后仅保留静态首帧）", "success", 3200);
+            } catch (err) {
+                showToast("复制失败: " + (err && err.message ? err.message : "剪贴板写入被拒绝"), "error", 3200);
+            }
         }
 
         /**
@@ -10476,7 +10559,7 @@
                 const fileName = `apng_disguise_${Date.now()}.png`;
                 const formattedSize = formatBytes(result.apngBlob.size);
 
-                displayApngResult(url, fileName);
+                displayApngResult(url, fileName, result.apngBlob);
 
                 const dimBadge = document.getElementById("result-dimensions");
                 if (dimBadge) {
